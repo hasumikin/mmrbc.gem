@@ -1,5 +1,5 @@
+require "test_helper"
 require "ripper"
-require "mrbcc"
 
 class TokenizeTest < Test::Unit::TestCase
 

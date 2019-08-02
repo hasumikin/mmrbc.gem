@@ -115,6 +115,9 @@ module Mrbcc
     def initialize(file, paren = nil)
       @f = file
       @@paren_stack << paren
+      @mode = nil
+      @mode_terminator = nil
+      @state = nil
     end
 
     def hasMoreTokens?
