@@ -81,13 +81,36 @@ module Mrbcc
     COMMA = %w(,)
     SEMICOLON = %w(;)
 
-    attr_reader :tokens
+    def self.init_classvars
+      @@tokens = Array.new
+      @@line = ""
+      @@line_num = 0
+      @@pos = 0
+      @@paren_stack = Array.new
+    end
 
-    @@tokens = Array.new
-    @@line = ""
-    @@line_num = 0
-    @@pos = 0
-    @@paren_stack = Array.new
+    def tokens
+      @@tokens
+    end
+
+    EXPR_NONE   = 0b0000000000000
+    EXPR_BEG    = 0b0000000000001
+    EXPR_VALUE  = 0b0000000000001
+    EXPR_END    = 0b0000000000010
+    EXPR_ENDARG = 0b0000000000100
+    EXPR_ENDFN  = 0b0000000001000
+    EXPR_END_ANY= 0b0000000001110
+    EXPR_ARG    = 0b0000000010000
+    EXPR_CMDARG = 0b0000000100000
+    EXPR_ARG_ANY= 0b0000000110000
+    EXPR_MID    = 0b0000001000000
+    EXPR_FNAME  = 0b0000010000000
+    EXPR_DOT    = 0b0000100000000
+    EXPR_CLASS  = 0b0001000000000
+    EXPR_BEG_ANY= 0b0001001000001
+    EXPR_LABEL  = 0b0010000000000
+    EXPR_LABELED= 0b0100000000000
+    EXPR_FITEM  = 0b1000000000000
 
     def initialize(file, paren = nil)
       @f = file
@@ -115,34 +138,82 @@ module Mrbcc
         type = @@line.match?(/\A=end(\s|\z)/) ? :on_embdoc_end : :on_embdoc
         @mode = nil
         token = @@line + "\n"
-      elsif @mode == :string_double
+      elsif %i(qwords words qsymbols symbols).include?(@mode)
         while true
           read_line
-          return nil if @@line.nil?
-          if @@line[@@pos] == ?"
+          token = ""
+          type = nil
+          if @@line[@@pos] == @mode_terminater
             lazy_token = [
               [@@line_num, @@pos],
               :on_tstring_end,
-              ?",
+              @mode_terminater,
+              EXPR_END
+            ]
+            @@pos += 1
+            @mode = nil
+            break
+          elsif [" ", "\n"].include?(@@line[@@pos])
+            token = @@line[@@pos..].match(/\A([\s\n]+)/)[1]
+            type = :on_words_sep
+          else
+            i = 0
+            while true
+              c = @@line[@@pos + i]
+              break if c.nil?
+              unless ["\s", "\n", @mode_terminator].include?(c)
+                token << c
+                i += 1
+              else
+                break
+              end
+            end
+            type = :on_tstring_content
+          end
+          if token.size > 0
+            if type == :on_words_sep && @@tokens.last[1] == :on_words_sep
+              @@tokens.last[2] += token
+            else
+              @@tokens << [
+                [@@line_num, @@pos],
+                type,
+                token,
+                EXPR_BEG
+              ]
+            end
+            @@pos += token.size
+          end
+        end
+        @@pos -= 1
+      elsif @mode == :tstring_double
+        while true
+          read_line
+          return nil if @@line.nil?
+          if @@line[@@pos] == @mode_terminater
+            lazy_token = [
+              [@@line_num, @@pos],
+              :on_tstring_end,
+              @mode_terminater,
+              EXPR_END
             ]
             @@pos += 1
             @mode = nil
             break
           elsif @@line[@@pos..@@pos+1] == '#{'
-            @@tokens << [ [@@line_num, @@pos - token.size], :on_tstring_content, token ]
+            @@tokens << [ [@@line_num, @@pos - token.size], :on_tstring_content, token, EXPR_BEG ]
             token = ""
             c = ""
-            @@tokens << [ [@@line_num, @@pos], :on_embexpr_beg, '#{' ]
+            @@tokens << [ [@@line_num, @@pos], :on_embexpr_beg, '#{', EXPR_BEG ]
             @@pos += 2
             tokenizer = Tokenizer.new(@f, :brace)
             while tokenizer.hasMoreTokens?
               ret = tokenizer.advance
               break if ret == :exit
             end
-            @@tokens << [ [@@line_num, @@pos], :on_embexpr_end, ?} ]
+            @@tokens << [ [@@line_num, @@pos], :on_embexpr_end, ?}, EXPR_CMDARG ]
             @@pos += 1
-          elsif @@line[@@pos..@@pos+1] == '\"'
-            c = '\"'
+          elsif @@line[@@pos..@@pos+1] == '\\' + @mode_terminater
+            c = '\\' + @mode_terminater
           else
             c = @@line[@@pos]
           end
@@ -151,7 +222,7 @@ module Mrbcc
         end
         @@pos -= 1
         type = :on_tstring_content if token.size > 0
-      elsif @mode == :string_single
+      elsif @mode == :tstring_single
         while true
           read_line
           return nil if @@line == ""
@@ -160,6 +231,7 @@ module Mrbcc
               [@@line_num, @@pos],
               :on_tstring_end,
               ?',
+              EXPR_END
             ]
             @@pos += 1
             @mode = nil
@@ -180,16 +252,22 @@ module Mrbcc
         type = :on_embdoc_beg
       elsif @@line[@@pos] == "\n"
         token = "\n"
-        type = :on_ignored_nl
+        type = :on_nl
       elsif @@line[@@pos..@@pos+1] == "\r\n"
         token = "\r\n"
-        type = :on_ignored_nl
+        type = :on_nl
       elsif OPERATORS_3.include?(@@line[@@pos..@@pos+2])
         token = @@line[@@pos..@@pos+2]
         type = :on_op
       elsif OPERATORS_2.include?(@@line[@@pos..@@pos+1])
         token = @@line[@@pos..@@pos+1]
         type = :on_op
+      elsif data = @@line[@@pos..].match(/\A(@\w+)/)
+        token = data[1]
+        type = :on_ivar
+      elsif data = @@line[@@pos..].match(/\A(\$\w+)/)
+        token = data[1]
+        type = :on_gvar
       elsif data = @@line[@@pos..].match(/\A(\?.)/)
         token = data[1]
         type = :on_CHAR
@@ -218,10 +296,14 @@ module Mrbcc
           token = @@line[@@pos]
           type = case token
           when "("; :on_lparen
-          when ")"; :on_rparen
+          when ")"
+            @state = EXPR_ENDFN
+            :on_rparen
           when "["; :on_lbracket
           when "]"; :on_rbracket
-          when "{"; :on_lbrace
+          when "{"
+            @state = EXPR_BEG|EXPR_LABEL
+            :on_lbrace
           when "}"
             if @@paren_stack.last == :brace
               @@paren_stack.pop
@@ -230,14 +312,50 @@ module Mrbcc
             :on_rbrace
           end
         when *OPERATORS_1
-          token = @@line[@@pos]
-          type = :on_op
+          if data = @@line[@@pos..].match(/\A(%[iIwWq][~!@#$%^&*()_\-=+\[{\]};:'"?])/)
+            token = data[1]
+            case token[1]
+            when "w"
+              type = :on_qwords_beg
+              @mode = :qwords
+            when "W"
+              type = :on_words_beg
+              @mode = :words
+            when "q"
+              type = :on_tstring_beg
+              @mode = :tstring_single
+            when "Q"
+              type = :on_tstring_beg
+              @mode = :tstring_double
+            when "i"
+              type = :on_qsymbols_beg
+              @mode = :qsymbols
+            when "I"
+              type = :on_symbols_beg
+              @mode = :symbols
+            end
+            @mode_terminater = case token[2]
+            when ?[
+              ?]
+            when ?{
+              ?}
+            when ?(
+              ?)
+            else
+              token[2]
+            end
+          else
+            token = @@line[@@pos]
+            type = :on_op
+          end
         when *SEMICOLON
           token = @@line[@@pos]
           type = :on_semicolon
+          @state = EXPR_BEG
         when *COMMA
           token = @@line[@@pos]
           type = :on_comma
+          @state = EXPR_BEG|EXPR_LABEL
         when /\d/
           if data = @@line[@@pos..].match(/\A([0-9_]+\.[0-9][0-9_]*)/)
             token = data[1]
@@ -252,7 +370,7 @@ module Mrbcc
           token = "."
           type = :on_period
         when /[A-Za-z_]/
-          if data = @@line[@@pos..].match(/\A([A-Za-z0-9_?!]:)/)
+          if data = @@line[@@pos..].match(/\A([A-Za-z0-9_?!]+:)/)
             token = data[1]
             type = :on_label
           elsif data = @@line[@@pos..].match(/\A([A-Z]\w*[!?])/)
@@ -267,23 +385,40 @@ module Mrbcc
           end
         when ?"
           token = ?"
-          @mode = :string_double
+          @mode = :tstring_double
+          @mode_terminater = ?"
           type = :on_tstring_beg
         when ?'
           token = ?'
-          @mode = :string_single
+          @mode = :tstring_single
+          @mode_terminater = ?'
           type = :on_tstring_beg
         else
           puts "ERROR error"
-          sleep 1
+          binding.irb
         end
       end
       @@pos += token.size unless lazy_token
       if type
         if %i(on_ident on_const).include?(type) && KEYWORDS.include?(token)
           type = :on_kw
+          @state = case token
+          when "class"
+            EXPR_CLASS
+          when "return", "break", "next", "rescue"
+            EXPR_MID
+          when "def", "alias", "undef"
+            EXPR_FNAME
+          end
+        else # on_ident
+          @state = case @state
+          when EXPR_CLASS
+            EXPR_ARG
+          when EXPR_FNAME
+            EXPR_ENDFN
+          end
         end
-        tokens = [ [@@line_num, @@pos - token.size], type, token ]
+        tokens = [ [@@line_num, @@pos - token.size], type, token, @state ]
         @@tokens << tokens
       end
       if lazy_token
@@ -296,18 +431,5 @@ module Mrbcc
       raise e
     end
 
-    def poplastnl
-      if %i(on_nl on_ignored_nl).include?(@@tokens.last[1])
-        @@tokens.pop
-      end
-    end
-
-    def close
-      @f.close
-    end
-
-    def show_tokens
-      pp @@tokens
-    end
   end
 end

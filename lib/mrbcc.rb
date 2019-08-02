@@ -25,7 +25,8 @@ module Mrbcc
         puts "mrbcc: No program file given"
         exit false
       end
-      tokenize(rb_path)
+      tokens = tokenize(rb_path)
+      pp tokens
     end
 
     desc "version", "Print the version"
@@ -36,15 +37,15 @@ module Mrbcc
   private
 
     def tokenize(path)
+      Tokenizer.init_classvars
       file = File.open(path, "r")
       tokenizer = Tokenizer.new(file)
       while tokenizer.hasMoreTokens?
         tokenizer.advance
       end
-      tokenizer.poplastnl
     ensure
-      tokenizer.close
-      tokenizer.show_tokens
+      file.close
+      return tokenizer.tokens
     end
 
     def parse
