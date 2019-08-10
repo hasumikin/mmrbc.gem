@@ -1,7 +1,7 @@
 require "test_helper"
 require "ripper"
 
-class TokenizeTest < Test::Unit::TestCase
+class TokenizerTest < Test::Unit::TestCase
 
   def test_array
     execute "array*"
@@ -68,8 +68,7 @@ class TokenizeTest < Test::Unit::TestCase
       Ripper.lex(File.read(f)).each_with_index do |line, i|
         line.pop
         line[1] = :on_nl if line[1] == :on_ignored_nl
-        tokens[i].pop
-        assert_equal line, tokens[i]
+        assert_equal line, tokens[i].to_a[0..2]
       end
     end
   end

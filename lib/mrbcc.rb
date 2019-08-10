@@ -2,6 +2,7 @@
 
 require "mrbcc/version"
 require "thor"
+require "nokogiri"
 require "mrbcc/tokenizer"
 require "mrbcc/parser"
 require "mrbcc/generator"
@@ -26,7 +27,7 @@ module Mrbcc
         exit false
       end
       tokens = tokenize(rb_path)
-      pp tokens
+      parse(tokens)
     end
 
     desc "version", "Print the version"
@@ -48,7 +49,13 @@ module Mrbcc
       return tokenizer.tokens
     end
 
-    def parse
+    def parse(tokens)
+      parser = Parser.new(tokens)
+      ast = Nokogiri::HTML::DocumentFragment.parse("")
+      Nokogiri::HTML::Builder.with(ast) do |e|
+        parser.reduce_program(e)
+      end
+      pp ast.to_xml
     end
 
     def generate
