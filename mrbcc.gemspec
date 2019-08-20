@@ -33,5 +33,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "test-unit", "~> 3.3"
 
   spec.add_dependency "thor", "~> 0.20"
-  spec.add_dependency "nokogiri"
+  spec.add_dependency "ffi", "~> 1.11"
 end

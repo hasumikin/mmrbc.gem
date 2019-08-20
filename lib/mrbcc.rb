@@ -2,7 +2,6 @@
 
 require "mrbcc/version"
 require "thor"
-require "nokogiri"
 require "mrbcc/tokenizer"
 require "mrbcc/parser"
 require "mrbcc/generator"
@@ -49,13 +48,31 @@ module Mrbcc
       return tokenizer.tokens
     end
 
+PLUS    = 1
+MINUS   = 2
+DIVIDE  = 3
+TIMES   = 4
+INTEGER = 5
     def parse(tokens)
-      parser = Parser.new(tokens)
-      ast = Nokogiri::HTML::DocumentFragment.parse("")
-      Nokogiri::HTML::Builder.with(ast) do |e|
-        parser.reduce_program(e)
+      pointer_to_malloc = Parser.pointerToMalloc
+      pointer_to_free = Parser.pointerToFree
+      parser = Parser.ParseAlloc(pointer_to_malloc)
+      begin
+        Parser.Parse(parser, INTEGER, 3)
+        Parser.Parse(parser, PLUS, 0)
+        Parser.Parse(parser, INTEGER, 2)
+        Parser.Parse(parser, TIMES, 0)
+        Parser.Parse(parser, INTEGER, 3)
+        Parser.Parse(parser, 0, 0)
+        Parser.Parse(parser, INTEGER, 2)
+        Parser.Parse(parser, TIMES, 0)
+        Parser.Parse(parser, INTEGER, 2)
+        Parser.Parse(parser, PLUS, 0)
+        Parser.Parse(parser, INTEGER, 3)
+        Parser.Parse(parser, 0, 0)
+      ensure
+        Parser.ParseFree(parser, pointer_to_free)
       end
-      pp ast.to_xml
     end
 
     def generate

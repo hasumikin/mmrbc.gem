@@ -1,0 +1,116 @@
+State 0:
+          program ::= * expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr PLUS expr
+          expr ::= * expr TIMES expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * INTEGER
+
+                       INTEGER shift-reduce 5      expr ::= INTEGER
+                       program accept
+                          expr shift        5      
+
+State 1:
+          expr ::= * expr MINUS expr
+          expr ::= * expr PLUS expr
+          expr ::= * expr TIMES expr
+          expr ::= * expr DIVIDE expr
+          expr ::= expr DIVIDE * expr
+          expr ::= * INTEGER
+
+                       INTEGER shift-reduce 5      expr ::= INTEGER
+                          expr shift-reduce 4      expr ::= expr DIVIDE expr
+
+State 2:
+          expr ::= * expr MINUS expr
+          expr ::= * expr PLUS expr
+          expr ::= * expr TIMES expr
+          expr ::= expr TIMES * expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * INTEGER
+
+                       INTEGER shift-reduce 5      expr ::= INTEGER
+                          expr shift-reduce 3      expr ::= expr TIMES expr
+
+State 3:
+          expr ::= * expr MINUS expr
+          expr ::= * expr PLUS expr
+          expr ::= expr PLUS * expr
+          expr ::= * expr TIMES expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * INTEGER
+
+                       INTEGER shift-reduce 5      expr ::= INTEGER
+                          expr shift        6      
+
+State 4:
+          expr ::= * expr MINUS expr
+          expr ::= expr MINUS * expr
+          expr ::= * expr PLUS expr
+          expr ::= * expr TIMES expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * INTEGER
+
+                       INTEGER shift-reduce 5      expr ::= INTEGER
+                          expr shift        7      
+
+State 5:
+      (0) program ::= expr *
+          expr ::= expr * MINUS expr
+          expr ::= expr * PLUS expr
+          expr ::= expr * TIMES expr
+          expr ::= expr * DIVIDE expr
+
+                             $ reduce       0      program ::= expr
+                          PLUS shift        3      
+                         MINUS shift        4      
+                        DIVIDE shift        1      
+                         TIMES shift        2      
+
+State 6:
+          expr ::= expr * MINUS expr
+          expr ::= expr * PLUS expr
+      (2) expr ::= expr PLUS expr *
+          expr ::= expr * TIMES expr
+          expr ::= expr * DIVIDE expr
+
+                        DIVIDE shift        1      
+                         TIMES shift        2      
+                     {default} reduce       2      expr ::= expr PLUS expr
+
+State 7:
+          expr ::= expr * MINUS expr
+      (1) expr ::= expr MINUS expr *
+          expr ::= expr * PLUS expr
+          expr ::= expr * TIMES expr
+          expr ::= expr * DIVIDE expr
+
+                        DIVIDE shift        1      
+                         TIMES shift        2      
+                     {default} reduce       1      expr ::= expr MINUS expr
+
+----------------------------------------------------
+Symbols:
+The first-set of non-terminals is shown after the name.
+
+    0: $:
+    1: PLUS (precedence=1)
+    2: MINUS (precedence=1)
+    3: DIVIDE (precedence=2)
+    4: TIMES (precedence=2)
+    5: INTEGER
+    6: program: INTEGER
+    7: expr: INTEGER
+----------------------------------------------------
+Syntax-only Symbols:
+The following symbols never carry semantic content.
+
+$ PLUS MINUS DIVIDE TIMES program
+----------------------------------------------------
+Rules:
+   0: program ::= expr.
+   1: expr ::= expr MINUS expr. [MINUS precedence=1]
+   2: expr ::= expr PLUS expr. [PLUS precedence=1]
+   3: expr ::= expr TIMES expr. [TIMES precedence=2]
+   4: expr ::= expr DIVIDE expr. [DIVIDE precedence=2]
+   5: expr ::= INTEGER.
