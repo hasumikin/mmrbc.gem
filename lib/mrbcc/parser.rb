@@ -9,6 +9,8 @@ module Mrbcc
 
     attach_function :pointerToMalloc, [], :pointer
     attach_function :pointerToFree, [], :pointer
+    attach_function :showAllNode, [], :void
+    attach_function :freeAllNode, [], :void
 
     # void *ParseAlloc(
     #   void *(*mallocProc)(YYMALLOCARGTYPE) ParseCTX_PDECL
@@ -27,6 +29,6 @@ module Mrbcc
     #   ParseTOKENTYPE yyminor       /* The value for the token */
     #   ParseARG_PDECL               /* Optional %extra_argument parameter */
     # ){
-    attach_function :Parse, [:pointer, :int, :int], :void
+    attach_function :Parse, [:pointer, :int, :string], :void
   end
 end

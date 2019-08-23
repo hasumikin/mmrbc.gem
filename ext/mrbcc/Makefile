@@ -9,7 +9,7 @@ libparse.so: $(PARSE).c
 	$(CC) -shared -o $(TARGET) $(PARSE).o
 
 $(PARSE).c: lemon
-	../../vendor/lemon/lemon ./$(PARSE).y
+	../../vendor/lemon/lemon -p ./$(PARSE).y
 
 lemon:
 	cd ../../vendor/lemon ; $(MAKE) all

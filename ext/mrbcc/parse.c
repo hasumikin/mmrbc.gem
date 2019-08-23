@@ -25,11 +25,74 @@
 #include <stdio.h>
 #include <assert.h>
 /************ Begin %include sections from the grammar ************************/
-#line 6 "./parse.y"
+#line 4 "./parse.y"
 
-#include <stdlib.h>
-#include "parse.h"
-#line 33 "./parse.c"
+  #include <stdlib.h>
+  #include <stdint.h>
+  #include "parse.h"
+
+  typedef struct node {
+    int type;
+    char *value;
+    struct node *child;
+    struct node *sibling;
+  } Node;
+
+  Node *root;
+
+  Node* reduce_program(Node *p1) {
+    Node *p;
+    p = (Node *)malloc(sizeof(Node));
+    if (p == NULL) {
+      printf("Out Of Memory");
+    }
+    p->type = 0;
+    p->value = "program";
+    p->child = p1;
+    p->sibling = NULL;
+    root = p;
+    return p;
+  }
+
+  Node* new_begin(Node *p1) {
+    Node *p;
+    p = (Node *)malloc(sizeof(Node));
+    if (p == NULL)
+      printf("Out Of Memory");
+    p->type = 0;
+    p->value = "new";
+    p->child = p1;
+    p->sibling = NULL;
+    return p;
+  }
+
+  Node* call_bin_op(Node *p1, int t, Node *p2) {
+    Node *p;
+    p = (Node *)malloc(sizeof(Node));
+    if (p == NULL) {
+      printf("Out Of Memory");
+    }
+    p->type = t;
+    p->value = "binary";
+    p->child = p1;
+    p1->sibling = p2;
+    p->sibling = NULL;
+    return p;
+  }
+
+  Node *reduce_ident(int t, char *v) {
+    Node *p;
+    p = (Node *)malloc(sizeof(Node));
+    if (p == NULL) {
+      printf("Out Of Memory");
+    }
+    p->type = t;
+    p->value = v;
+    p->child = NULL;
+    p->sibling = NULL;
+    return p;
+  }
+#line 96 "./parse.c"
 /**************** End of %include directives **********************************/
 /* These constants specify the various numeric values for terminal symbols
 ** in a format understandable to "makeheaders".  This section is blank unless
@@ -93,12 +156,13 @@
 #endif
 /************* Begin control #defines *****************************************/
 #define YYCODETYPE unsigned char
-#define YYNOCODE 8
+#define YYNOCODE 21
 #define YYACTIONTYPE unsigned char
-#define ParseTOKENTYPE int
+#define ParseTOKENTYPE  char* 
 typedef union {
   int yyinit;
   ParseTOKENTYPE yy0;
+  Node* yy27;
 } YYMINORTYPE;
 #ifndef YYSTACKDEPTH
 #define YYSTACKDEPTH 100
@@ -113,17 +177,17 @@ typedef union {
 #define ParseCTX_PARAM
 #define ParseCTX_FETCH
 #define ParseCTX_STORE
-#define YYNSTATE             8
-#define YYNRULE              6
-#define YYNTOKEN             6
-#define YY_MAX_SHIFT         7
-#define YY_MIN_SHIFTREDUCE   11
-#define YY_MAX_SHIFTREDUCE   16
-#define YY_ERROR_ACTION      17
-#define YY_ACCEPT_ACTION     18
-#define YY_NO_ACTION         19
-#define YY_MIN_REDUCE        20
-#define YY_MAX_REDUCE        25
+#define YYNSTATE             11
+#define YYNRULE              20
+#define YYNTOKEN             8
+#define YY_MAX_SHIFT         10
+#define YY_MIN_SHIFTREDUCE   25
+#define YY_MAX_SHIFTREDUCE   44
+#define YY_ERROR_ACTION      45
+#define YY_ACCEPT_ACTION     46
+#define YY_NO_ACTION         47
+#define YY_MIN_REDUCE        48
+#define YY_MAX_REDUCE        67
 /************* End control #defines *******************************************/
 #define YY_NLOOKAHEAD ((int)(sizeof(yy_lookahead)/sizeof(yy_lookahead[0])))
 
@@ -190,29 +254,37 @@ typedef union {
 **  yy_default[]       Default action for each state.
 **
 *********** Begin parsing tables **********************************************/
-#define YY_ACTTAB_COUNT (16)
+#define YY_ACTTAB_COUNT (42)
 static const YYACTIONTYPE yy_action[] = {
- /*     0 */    20,    3,    4,    1,    2,   18,    5,    1,    2,   24,
- /*    10 */    16,   19,   19,   23,    6,    7,
+ /*     0 */    46,   10,    5,   65,   50,   50,   50,    7,   55,   55,
+ /*    10 */    55,   54,   55,   55,   55,   53,   55,   55,   55,   33,
+ /*    20 */     8,   55,   55,   55,    9,   55,   55,   55,    4,    3,
+ /*    30 */     1,    2,   49,   47,   43,   44,    1,    2,   48,   47,
+ /*    40 */     6,    6,
 };
 static const YYCODETYPE yy_lookahead[] = {
- /*     0 */     0,    1,    2,    3,    4,    6,    7,    3,    4,    7,
- /*    10 */     5,    8,    8,    7,    7,    7,    8,
+ /*     0 */     8,    9,   10,   20,   12,   13,   14,   15,   16,   17,
+ /*    10 */    18,   15,   16,   17,   18,   15,   16,   17,   18,    5,
+ /*    20 */    15,   16,   17,   18,   15,   16,   17,   18,    1,    2,
+ /*    30 */     3,    4,   11,   21,    6,    7,    3,    4,    0,   21,
+ /*    40 */    19,   20,   21,   21,   21,   21,   21,
 };
-#define YY_SHIFT_COUNT    (7)
+#define YY_SHIFT_COUNT    (10)
 #define YY_SHIFT_MIN      (0)
-#define YY_SHIFT_MAX      (5)
+#define YY_SHIFT_MAX      (38)
 static const unsigned char yy_shift_ofst[] = {
- /*     0 */     5,    5,    5,    5,    5,    0,    4,    4,
+ /*     0 */    14,   14,   14,   14,   14,   28,   28,   27,   33,   33,
+ /*    10 */    38,
 };
-#define YY_REDUCE_COUNT (4)
-#define YY_REDUCE_MIN   (-1)
-#define YY_REDUCE_MAX   (8)
+#define YY_REDUCE_COUNT (6)
+#define YY_REDUCE_MIN   (-17)
+#define YY_REDUCE_MAX   (21)
 static const signed char yy_reduce_ofst[] = {
- /*     0 */    -1,    2,    6,    7,    8,
+ /*     0 */    -8,   -4,    0,    5,    9,   21,  -17,
 };
 static const YYACTIONTYPE yy_default[] = {
- /*     0 */    17,   17,   17,   17,   17,   17,   22,   21,
+ /*     0 */    45,   45,   45,   45,   45,   62,   63,   59,   52,   51,
+ /*    10 */    45,
 };
 /********** End of lemon-generated parsing tables *****************************/
 
@@ -325,8 +397,21 @@ static const char *const yyTokenName[] = {
   /*    3 */ "DIVIDE",
   /*    4 */ "TIMES",
   /*    5 */ "INTEGER",
-  /*    6 */ "program",
-  /*    7 */ "expr",
+  /*    6 */ "NL",
+  /*    7 */ "SEMICOLON",
+  /*    8 */ "program",
+  /*    9 */ "top_compstmt",
+  /*   10 */ "top_stmts",
+  /*   11 */ "opt_terms",
+  /*   12 */ "top_stmt",
+  /*   13 */ "stmt",
+  /*   14 */ "expr",
+  /*   15 */ "arg",
+  /*   16 */ "primary",
+  /*   17 */ "literal",
+  /*   18 */ "numeric",
+  /*   19 */ "terms",
+  /*   20 */ "term",
 };
 #endif /* defined(YYCOVERAGE) || !defined(NDEBUG) */
 
@@ -334,12 +419,26 @@ static const char *const yyTokenName[] = {
 /* For tracing reduce actions, the names of all rules are required.
 */
 static const char *const yyRuleName[] = {
- /*   0 */ "program ::= expr",
- /*   1 */ "expr ::= expr MINUS expr",
- /*   2 */ "expr ::= expr PLUS expr",
- /*   3 */ "expr ::= expr TIMES expr",
- /*   4 */ "expr ::= expr DIVIDE expr",
- /*   5 */ "expr ::= INTEGER",
+ /*   0 */ "program ::= top_compstmt",
+ /*   1 */ "top_compstmt ::= top_stmts opt_terms",
+ /*   2 */ "top_stmts ::= top_stmt",
+ /*   3 */ "arg ::= arg PLUS arg",
+ /*   4 */ "arg ::= arg MINUS arg",
+ /*   5 */ "arg ::= arg TIMES arg",
+ /*   6 */ "arg ::= arg DIVIDE arg",
+ /*   7 */ "arg ::= primary",
+ /*   8 */ "numeric ::= INTEGER",
+ /*   9 */ "top_stmt ::= stmt",
+ /*  10 */ "stmt ::= expr",
+ /*  11 */ "expr ::= arg",
+ /*  12 */ "primary ::= literal",
+ /*  13 */ "literal ::= numeric",
+ /*  14 */ "opt_terms ::=",
+ /*  15 */ "opt_terms ::= terms",
+ /*  16 */ "terms ::= term",
+ /*  17 */ "terms ::= terms term",
+ /*  18 */ "term ::= NL",
+ /*  19 */ "term ::= SEMICOLON",
 };
 #endif /* NDEBUG */
 
@@ -756,23 +855,51 @@ static void yy_shift(
 /* For rule J, yyRuleInfoLhs[J] contains the symbol on the left-hand side
 ** of that rule */
 static const YYCODETYPE yyRuleInfoLhs[] = {
-     6,  /* (0) program ::= expr */
-     7,  /* (1) expr ::= expr MINUS expr */
-     7,  /* (2) expr ::= expr PLUS expr */
-     7,  /* (3) expr ::= expr TIMES expr */
-     7,  /* (4) expr ::= expr DIVIDE expr */
-     7,  /* (5) expr ::= INTEGER */
+     8,  /* (0) program ::= top_compstmt */
+     9,  /* (1) top_compstmt ::= top_stmts opt_terms */
+    10,  /* (2) top_stmts ::= top_stmt */
+    15,  /* (3) arg ::= arg PLUS arg */
+    15,  /* (4) arg ::= arg MINUS arg */
+    15,  /* (5) arg ::= arg TIMES arg */
+    15,  /* (6) arg ::= arg DIVIDE arg */
+    15,  /* (7) arg ::= primary */
+    18,  /* (8) numeric ::= INTEGER */
+    12,  /* (9) top_stmt ::= stmt */
+    13,  /* (10) stmt ::= expr */
+    14,  /* (11) expr ::= arg */
+    16,  /* (12) primary ::= literal */
+    17,  /* (13) literal ::= numeric */
+    11,  /* (14) opt_terms ::= */
+    11,  /* (15) opt_terms ::= terms */
+    19,  /* (16) terms ::= term */
+    19,  /* (17) terms ::= terms term */
+    20,  /* (18) term ::= NL */
+    20,  /* (19) term ::= SEMICOLON */
 };
 
 /* For rule J, yyRuleInfoNRhs[J] contains the negative of the number
 ** of symbols on the right-hand side of that rule. */
 static const signed char yyRuleInfoNRhs[] = {
-   -1,  /* (0) program ::= expr */
-   -3,  /* (1) expr ::= expr MINUS expr */
-   -3,  /* (2) expr ::= expr PLUS expr */
-   -3,  /* (3) expr ::= expr TIMES expr */
-   -3,  /* (4) expr ::= expr DIVIDE expr */
-   -1,  /* (5) expr ::= INTEGER */
+   -1,  /* (0) program ::= top_compstmt */
+   -2,  /* (1) top_compstmt ::= top_stmts opt_terms */
+   -1,  /* (2) top_stmts ::= top_stmt */
+   -3,  /* (3) arg ::= arg PLUS arg */
+   -3,  /* (4) arg ::= arg MINUS arg */
+   -3,  /* (5) arg ::= arg TIMES arg */
+   -3,  /* (6) arg ::= arg DIVIDE arg */
+   -1,  /* (7) arg ::= primary */
+   -1,  /* (8) numeric ::= INTEGER */
+   -1,  /* (9) top_stmt ::= stmt */
+   -1,  /* (10) stmt ::= expr */
+   -1,  /* (11) expr ::= arg */
+   -1,  /* (12) primary ::= literal */
+   -1,  /* (13) literal ::= numeric */
+    0,  /* (14) opt_terms ::= */
+   -1,  /* (15) opt_terms ::= terms */
+   -1,  /* (16) terms ::= term */
+   -2,  /* (17) terms ::= terms term */
+   -1,  /* (18) term ::= NL */
+   -1,  /* (19) term ::= SEMICOLON */
 };
 
 static void yy_accept(yyParser*);  /* Forward Declaration */
@@ -859,48 +986,72 @@ static YYACTIONTYPE yy_reduce(
   */
 /********** Begin reduce actions **********************************************/
         YYMINORTYPE yylhsminor;
-      case 0: /* program ::= expr */
-#line 15 "./parse.y"
-{ printf("Result=%d\n", yymsp[0].minor.yy0); }
-#line 866 "./parse.c"
+      case 0: /* program ::= top_compstmt */
+#line 81 "./parse.y"
+{ yylhsminor.yy27 = reduce_program(yymsp[0].minor.yy27); }
+#line 993 "./parse.c"
+  yymsp[0].minor.yy27 = yylhsminor.yy27;
         break;
-      case 1: /* expr ::= expr MINUS expr */
-#line 17 "./parse.y"
-{ yylhsminor.yy0 = yymsp[-2].minor.yy0 - yymsp[0].minor.yy0; }
-#line 871 "./parse.c"
-  yymsp[-2].minor.yy0 = yylhsminor.yy0;
+      case 1: /* top_compstmt ::= top_stmts opt_terms */
+#line 82 "./parse.y"
+{ yylhsminor.yy27 = yymsp[-1].minor.yy27; }
+#line 999 "./parse.c"
+  yymsp[-1].minor.yy27 = yylhsminor.yy27;
         break;
-      case 2: /* expr ::= expr PLUS expr */
-#line 18 "./parse.y"
-{ yylhsminor.yy0 = yymsp[-2].minor.yy0 + yymsp[0].minor.yy0; }
-#line 877 "./parse.c"
-  yymsp[-2].minor.yy0 = yylhsminor.yy0;
+      case 2: /* top_stmts ::= top_stmt */
+#line 83 "./parse.y"
+{ yylhsminor.yy27 = new_begin(yymsp[0].minor.yy27); }
+#line 1005 "./parse.c"
+  yymsp[0].minor.yy27 = yylhsminor.yy27;
         break;
-      case 3: /* expr ::= expr TIMES expr */
-#line 19 "./parse.y"
-{ yylhsminor.yy0 = yymsp[-2].minor.yy0 * yymsp[0].minor.yy0; }
-#line 883 "./parse.c"
-  yymsp[-2].minor.yy0 = yylhsminor.yy0;
+      case 3: /* arg ::= arg PLUS arg */
+#line 88 "./parse.y"
+{ yylhsminor.yy27 = call_bin_op(yymsp[-2].minor.yy27, PLUS ,yymsp[0].minor.yy27); }
+#line 1011 "./parse.c"
+  yymsp[-2].minor.yy27 = yylhsminor.yy27;
         break;
-      case 4: /* expr ::= expr DIVIDE expr */
-#line 20 "./parse.y"
-{
-         if(yymsp[0].minor.yy0 != 0){
-           yylhsminor.yy0 = yymsp[-2].minor.yy0 / yymsp[0].minor.yy0;
-         }else{
-           printf("divide by zero\n");
-         }
-}
-#line 895 "./parse.c"
-  yymsp[-2].minor.yy0 = yylhsminor.yy0;
+      case 4: /* arg ::= arg MINUS arg */
+#line 89 "./parse.y"
+{ yylhsminor.yy27 = call_bin_op(yymsp[-2].minor.yy27, MINUS, yymsp[0].minor.yy27); }
+#line 1017 "./parse.c"
+  yymsp[-2].minor.yy27 = yylhsminor.yy27;
         break;
-      case 5: /* expr ::= INTEGER */
-#line 29 "./parse.y"
-{ yylhsminor.yy0 = yymsp[0].minor.yy0; }
-#line 901 "./parse.c"
-  yymsp[0].minor.yy0 = yylhsminor.yy0;
+      case 5: /* arg ::= arg TIMES arg */
+#line 90 "./parse.y"
+{ yylhsminor.yy27 = call_bin_op(yymsp[-2].minor.yy27, TIMES, yymsp[0].minor.yy27); }
+#line 1023 "./parse.c"
+  yymsp[-2].minor.yy27 = yylhsminor.yy27;
+        break;
+      case 6: /* arg ::= arg DIVIDE arg */
+#line 91 "./parse.y"
+{ yylhsminor.yy27 = call_bin_op(yymsp[-2].minor.yy27, DIVIDE, yymsp[0].minor.yy27); }
+#line 1029 "./parse.c"
+  yymsp[-2].minor.yy27 = yylhsminor.yy27;
+        break;
+      case 7: /* arg ::= primary */
+#line 92 "./parse.y"
+{ yylhsminor.yy27 = yymsp[0].minor.yy27; }
+#line 1035 "./parse.c"
+  yymsp[0].minor.yy27 = yylhsminor.yy27;
+        break;
+      case 8: /* numeric ::= INTEGER */
+#line 95 "./parse.y"
+{ yylhsminor.yy27 = reduce_ident(INTEGER, yymsp[0].minor.yy0); }
+#line 1041 "./parse.c"
+  yymsp[0].minor.yy27 = yylhsminor.yy27;
         break;
       default:
+      /* (9) top_stmt ::= stmt (OPTIMIZED OUT) */ assert(yyruleno!=9);
+      /* (10) stmt ::= expr (OPTIMIZED OUT) */ assert(yyruleno!=10);
+      /* (11) expr ::= arg */ yytestcase(yyruleno==11);
+      /* (12) primary ::= literal (OPTIMIZED OUT) */ assert(yyruleno!=12);
+      /* (13) literal ::= numeric (OPTIMIZED OUT) */ assert(yyruleno!=13);
+      /* (14) opt_terms ::= */ yytestcase(yyruleno==14);
+      /* (15) opt_terms ::= terms */ yytestcase(yyruleno==15);
+      /* (16) terms ::= term (OPTIMIZED OUT) */ assert(yyruleno!=16);
+      /* (17) terms ::= terms term */ yytestcase(yyruleno==17);
+      /* (18) term ::= NL */ yytestcase(yyruleno==18);
+      /* (19) term ::= SEMICOLON */ yytestcase(yyruleno==19);
         break;
 /********** End reduce actions ************************************************/
   };
@@ -942,6 +1093,9 @@ static void yy_parse_failed(
   /* Here code is inserted which will be executed whenever the
   ** parser fails */
 /************ Begin %parse_failure code ***************************************/
+#line 74 "./parse.y"
+ fprintf(stderr, "Parse failure\n"); 
+#line 1099 "./parse.c"
 /************ End %parse_failure code *****************************************/
   ParseARG_STORE /* Suppress warning about unused %extra_argument variable */
   ParseCTX_STORE
@@ -960,10 +1114,9 @@ static void yy_syntax_error(
   ParseCTX_FETCH
 #define TOKEN yyminor
 /************ Begin %syntax_error code ****************************************/
-#line 11 "./parse.y"
-
-  printf("Syntax Error!\n");
-#line 967 "./parse.c"
+#line 73 "./parse.y"
+ fprintf(stderr, "Syntax error\n"); 
+#line 1120 "./parse.c"
 /************ End %syntax_error code ******************************************/
   ParseARG_STORE /* Suppress warning about unused %extra_argument variable */
   ParseCTX_STORE
@@ -989,6 +1142,9 @@ static void yy_accept(
   /* Here code is inserted which will be executed whenever the
   ** parser accepts */
 /*********** Begin %parse_accept code *****************************************/
+#line 72 "./parse.y"
+ printf("Parse has completed successfully.\n"); 
+#line 1148 "./parse.c"
 /*********** End %parse_accept code *******************************************/
   ParseARG_STORE /* Suppress warning about unused %extra_argument variable */
   ParseCTX_STORE
@@ -1197,7 +1353,7 @@ int ParseFallback(int iToken){
 #endif
   return 0;
 }
-#line 31 "./parse.y"
+#line 105 "./parse.y"
 
   void *pointerToMalloc(void){
     return malloc;
@@ -1206,4 +1362,34 @@ int ParseFallback(int iToken){
   void *pointerToFree(void){
     return free;
   }
-#line 1210 "./parse.c"
+
+  void freeNode(Node *p) {
+    if (p == NULL)
+      return;
+    freeNode(p->child);
+    freeNode(p->sibling);
+    free(p);
+  }
+
+  void freeAllNode(void) {
+    freeNode(root);
+  }
+
+  void showNode(Node *p) {
+    if (p == NULL)
+      return;
+    if (p->value == NULL)
+      return;
+    printf("id:%lu, type:%d, value:%s\n", (uintptr_t)p, p->type, p->value);
+    if (p->child != NULL)
+      printf("  child:%lu\n", (uintptr_t)p->child);
+    if (p->sibling != NULL)
+      printf("  sibling:%lu\n", (uintptr_t)p->sibling);
+    showNode(p->child);
+    showNode(p->sibling);
+  }
+
+  void showAllNode(void) {
+    showNode(root);
+  }
+#line 1396 "./parse.c"
