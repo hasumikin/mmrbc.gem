@@ -61,20 +61,20 @@ INTEGER = 5
         Parser.Parse(parser, INTEGER, "1")
         Parser.Parse(parser, PLUS, "0")
         Parser.Parse(parser, INTEGER, "2")
-        Parser.Parse(parser, TIMES, "0")
-        Parser.Parse(parser, INTEGER, "3")
         Parser.Parse(parser, 0, "0")
         Parser.showAllNode
-        Parser.freeAllNode
         puts
-        Parser.Parse(parser, INTEGER, "-2")
-        Parser.Parse(parser, TIMES, "0")
-        Parser.Parse(parser, INTEGER, "2")
-        Parser.Parse(parser, PLUS, "0")
-        Parser.Parse(parser, INTEGER, "3")
-        Parser.Parse(parser, 0, "0")
-        Parser.showAllNode
+        puts
         Parser.freeAllNode
+#        puts
+#        Parser.Parse(parser, INTEGER, "-2")
+#        Parser.Parse(parser, TIMES, "0")
+#        Parser.Parse(parser, INTEGER, "2")
+#        Parser.Parse(parser, PLUS, "0")
+#        Parser.Parse(parser, INTEGER, "3")
+#        Parser.Parse(parser, 0, "0")
+#        Parser.showAllNode
+#        Parser.freeAllNode
       ensure
         Parser.ParseFree(parser, pointer_to_free)
       end

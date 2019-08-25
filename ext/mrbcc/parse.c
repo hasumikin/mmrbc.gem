@@ -29,70 +29,258 @@
 
   #include <stdlib.h>
   #include <stdint.h>
+  #include <string.h>
   #include "parse.h"
 
+enum node_type {
+  NODE_METHOD,
+  NODE_SCOPE,
+  NODE_BLOCK,
+  NODE_IF,
+  NODE_CASE,
+  NODE_WHEN,
+  NODE_WHILE,
+  NODE_UNTIL,
+  NODE_ITER,
+  NODE_FOR,
+  NODE_BREAK,
+  NODE_NEXT,
+  NODE_REDO,
+  NODE_RETRY,
+  NODE_BEGIN,
+  NODE_RESCUE,
+  NODE_ENSURE,
+  NODE_AND,
+  NODE_OR,
+  NODE_NOT,
+  NODE_MASGN,
+  NODE_ASGN,
+  NODE_CDECL,
+  NODE_CVASGN,
+  NODE_CVDECL,
+  NODE_OP_ASGN,
+  NODE_CALL,
+  NODE_SCALL,
+  NODE_FCALL,
+  NODE_SUPER,
+  NODE_ZSUPER,
+  NODE_ARRAY,
+  NODE_ZARRAY,
+  NODE_HASH,
+  NODE_KW_HASH,
+  NODE_RETURN,
+  NODE_YIELD,
+  NODE_LVAR,
+  NODE_DVAR,
+  NODE_GVAR,
+  NODE_IVAR,
+  NODE_CONST,
+  NODE_CVAR,
+  NODE_NTH_REF,
+  NODE_BACK_REF,
+  NODE_MATCH,
+  NODE_INT,
+  NODE_FLOAT,
+  NODE_NEGATE,
+  NODE_LAMBDA,
+  NODE_SYM,
+  NODE_STR,
+  NODE_DSTR,
+  NODE_XSTR,
+  NODE_DXSTR,
+  NODE_REGX,
+  NODE_DREGX,
+  NODE_DREGX_ONCE,
+  NODE_ARG,
+  NODE_ARGS_TAIL,
+  NODE_KW_ARG,
+  NODE_KW_REST_ARGS,
+  NODE_SPLAT,
+  NODE_TO_ARY,
+  NODE_SVALUE,
+  NODE_BLOCK_ARG,
+  NODE_DEF,
+  NODE_SDEF,
+  NODE_ALIAS,
+  NODE_UNDEF,
+  NODE_CLASS,
+  NODE_MODULE,
+  NODE_SCLASS,
+  NODE_COLON2,
+  NODE_COLON3,
+  NODE_DOT2,
+  NODE_DOT3,
+  NODE_SELF,
+  NODE_NIL,
+  NODE_TRUE,
+  NODE_FALSE,
+  NODE_DEFINED,
+  NODE_POSTEXE,
+  NODE_DSYM,
+  NODE_HEREDOC,
+  NODE_LITERAL_DELIM,
+  NODE_WORDS,
+  NODE_SYMBOLS,
+  NODE_LAST
+};
+
+  typedef struct mrb_parser_state {
+    /* see mruby/include/mruby/compile.h */
+  } parser_state;
+
   typedef struct node {
-    int type;
-    char *value;
-    struct node *child;
-    struct node *sibling;
-  } Node;
+    int type; //hh
+    char *value; //hh
+    struct node *car;
+    struct node *cdr;
+  } node;
 
-  Node *root;
+  parser_state *p;
+  node *root;
 
-  Node* reduce_program(Node *p1) {
-    Node *p;
-    p = (Node *)malloc(sizeof(Node));
+static char*
+parser_strndup(parser_state *p, const char *s, size_t len)
+{
+  char *b = (char *)malloc(len+1);
+  memcpy(b, s, len);
+  b[len] = '\0';
+  return b;
+}
+#undef strndup
+#define strndup(s,len) parser_strndup(p, s, len)
+static char*
+parser_strdup(parser_state *p, const char *s)
+{
+  return parser_strndup(p, s, strlen(s));
+}
+#undef strdup
+#define strdup(s) parser_strdup(p, s)
+
+  node* reduce_program(node *p1) {
+    node *p;
+    p = (node *)malloc(sizeof(node));
     if (p == NULL) {
       printf("Out Of Memory");
     }
     p->type = 0;
     p->value = "program";
-    p->child = p1;
-    p->sibling = NULL;
+    p->car = p1;
+    p->cdr = NULL;
     root = p;
     return p;
   }
 
-  Node* new_begin(Node *p1) {
-    Node *p;
-    p = (Node *)malloc(sizeof(Node));
+  node* new_begin(node *p1) {
+    node *p;
+    p = (node *)malloc(sizeof(node));
     if (p == NULL)
       printf("Out Of Memory");
     p->type = 0;
     p->value = "new";
-    p->child = p1;
-    p->sibling = NULL;
+    p->car = p1;
+    p->cdr = NULL;
     return p;
   }
 
-  Node* call_bin_op(Node *p1, int t, Node *p2) {
-    Node *p;
-    p = (Node *)malloc(sizeof(Node));
-    if (p == NULL) {
-      printf("Out Of Memory");
-    }
-    p->type = t;
-    p->value = "binary";
-    p->child = p1;
-    p1->sibling = p2;
-    p->sibling = NULL;
-    return p;
+  static node*
+  cons_gen(parser_state *p, node *car, node *cdr)
+  {
+    node *c;
+    //if (p->cells) {
+    //  c = p->cells;
+    //  p->cells = p->cells->cdr;
+    //}
+    //else {
+    //  c = (node *)parser_palloc(p, sizeof(node));
+    c = (node *)malloc(sizeof(node));
+    if (c == NULL) printf("Out Of Memory");
+    //}
+    c->car = car;
+    c->cdr = cdr;
+    //c->lineno = p->lineno;
+    //c->filename_index = p->current_filename_index;
+    /* beginning of next partial file; need to point the previous file */
+    //if (p->lineno == 0 && p->current_filename_index > 0) {
+    //  c->filename_index-- ;
+    //}
+    return c;
+  }
+  #define cons(a,b) cons_gen(p,(a),(b))
+
+  static node*
+  list1_gen(parser_state *p, node *a)
+  {
+    return cons(a, 0);
+  }
+  #define list1(a) list1_gen(p, (a))
+
+static node*
+list2_gen(parser_state *p, node *a, node *b)
+{
+  return cons(a, cons(b,0));
+}
+#define list2(a,b) list2_gen(p, (a),(b))
+
+static node*
+list3_gen(parser_state *p, node *a, node *b, node *c)
+{
+  return cons(a, cons(b, cons(c,0)));
+}
+#define list3(a,b,c) list3_gen(p, (a),(b),(c))
+
+static node*
+list4_gen(parser_state *p, node *a, node *b, node *c, node *d)
+{
+  return cons(a, cons(b, cons(c, cons(d, 0))));
+}
+#define list4(a,b,c,d) list4_gen(p, (a),(b),(c),(d))
+
+static node*
+list5_gen(parser_state *p, node *a, node *b, node *c, node *d, node *e)
+{
+  return cons(a, cons(b, cons(c, cons(d, cons(e, 0)))));
+}
+#define list5(a,b,c,d,e) list5_gen(p, (a),(b),(c),(d),(e))
+
+static node*
+list6_gen(parser_state *p, node *a, node *b, node *c, node *d, node *e, node *f)
+{
+  return cons(a, cons(b, cons(c, cons(d, cons(e, cons(f, 0))))));
+}
+#define list6(a,b,c,d,e,f) list6_gen(p, (a),(b),(c),(d),(e),(f))
+  #define nsym(x) ((node*)(intptr_t)(x))
+  #define nint(x) ((node*)(intptr_t)(x))
+  /* (:call a b c) */
+  static node*
+  new_call(parser_state *p, node *a, int b, node *c, int pass)
+  {
+    node *bin;
+    bin->value = ":+";
+    bin->car = NULL;
+    bin->cdr = NULL;
+    node *n = list4(nint(pass?NODE_CALL:NODE_SCALL), a, bin, c);
+    //void_expr_error(p, a);
+    //NODE_LINENO(n, a);
+    return n;
   }
 
-  Node *reduce_ident(int t, char *v) {
-    Node *p;
-    p = (Node *)malloc(sizeof(Node));
-    if (p == NULL) {
-      printf("Out Of Memory");
-    }
-    p->type = t;
-    p->value = v;
-    p->child = NULL;
-    p->sibling = NULL;
-    return p;
+  static node*
+  call_bin_op(node *recv, int m, node *arg1)
+  {
+    node *n = new_call(p, recv, m, list1(list1(arg1)), 1);
+    n->value = "binary";
+    return n;
   }
-#line 96 "./parse.c"
+
+  /* (:int . i) */
+  static node*
+  new_int(parser_state *p, const char *s, int base, int suffix)
+  {
+    node* result = list3((node*)NODE_INT, (node*)strdup(s), nint(base));
+    result->value = "@int";
+    return result;
+  }
+#line 284 "./parse.c"
 /**************** End of %include directives **********************************/
 /* These constants specify the various numeric values for terminal symbols
 ** in a format understandable to "makeheaders".  This section is blank unless
@@ -162,7 +350,7 @@
 typedef union {
   int yyinit;
   ParseTOKENTYPE yy0;
-  Node* yy27;
+  node* yy29;
 } YYMINORTYPE;
 #ifndef YYSTACKDEPTH
 #define YYSTACKDEPTH 100
@@ -987,58 +1175,58 @@ static YYACTIONTYPE yy_reduce(
 /********** Begin reduce actions **********************************************/
         YYMINORTYPE yylhsminor;
       case 0: /* program ::= top_compstmt */
-#line 81 "./parse.y"
-{ yylhsminor.yy27 = reduce_program(yymsp[0].minor.yy27); }
-#line 993 "./parse.c"
-  yymsp[0].minor.yy27 = yylhsminor.yy27;
+#line 269 "./parse.y"
+{ yylhsminor.yy29 = reduce_program(yymsp[0].minor.yy29); }
+#line 1181 "./parse.c"
+  yymsp[0].minor.yy29 = yylhsminor.yy29;
         break;
       case 1: /* top_compstmt ::= top_stmts opt_terms */
-#line 82 "./parse.y"
-{ yylhsminor.yy27 = yymsp[-1].minor.yy27; }
-#line 999 "./parse.c"
-  yymsp[-1].minor.yy27 = yylhsminor.yy27;
+#line 270 "./parse.y"
+{ yylhsminor.yy29 = yymsp[-1].minor.yy29; }
+#line 1187 "./parse.c"
+  yymsp[-1].minor.yy29 = yylhsminor.yy29;
         break;
       case 2: /* top_stmts ::= top_stmt */
-#line 83 "./parse.y"
-{ yylhsminor.yy27 = new_begin(yymsp[0].minor.yy27); }
-#line 1005 "./parse.c"
-  yymsp[0].minor.yy27 = yylhsminor.yy27;
+#line 271 "./parse.y"
+{ yylhsminor.yy29 = new_begin(yymsp[0].minor.yy29); }
+#line 1193 "./parse.c"
+  yymsp[0].minor.yy29 = yylhsminor.yy29;
         break;
       case 3: /* arg ::= arg PLUS arg */
-#line 88 "./parse.y"
-{ yylhsminor.yy27 = call_bin_op(yymsp[-2].minor.yy27, PLUS ,yymsp[0].minor.yy27); }
-#line 1011 "./parse.c"
-  yymsp[-2].minor.yy27 = yylhsminor.yy27;
+#line 276 "./parse.y"
+{ yylhsminor.yy29 = call_bin_op(yymsp[-2].minor.yy29, PLUS ,yymsp[0].minor.yy29); }
+#line 1199 "./parse.c"
+  yymsp[-2].minor.yy29 = yylhsminor.yy29;
         break;
       case 4: /* arg ::= arg MINUS arg */
-#line 89 "./parse.y"
-{ yylhsminor.yy27 = call_bin_op(yymsp[-2].minor.yy27, MINUS, yymsp[0].minor.yy27); }
-#line 1017 "./parse.c"
-  yymsp[-2].minor.yy27 = yylhsminor.yy27;
+#line 277 "./parse.y"
+{ yylhsminor.yy29 = call_bin_op(yymsp[-2].minor.yy29, MINUS, yymsp[0].minor.yy29); }
+#line 1205 "./parse.c"
+  yymsp[-2].minor.yy29 = yylhsminor.yy29;
         break;
       case 5: /* arg ::= arg TIMES arg */
-#line 90 "./parse.y"
-{ yylhsminor.yy27 = call_bin_op(yymsp[-2].minor.yy27, TIMES, yymsp[0].minor.yy27); }
-#line 1023 "./parse.c"
-  yymsp[-2].minor.yy27 = yylhsminor.yy27;
+#line 278 "./parse.y"
+{ yylhsminor.yy29 = call_bin_op(yymsp[-2].minor.yy29, TIMES, yymsp[0].minor.yy29); }
+#line 1211 "./parse.c"
+  yymsp[-2].minor.yy29 = yylhsminor.yy29;
         break;
       case 6: /* arg ::= arg DIVIDE arg */
-#line 91 "./parse.y"
-{ yylhsminor.yy27 = call_bin_op(yymsp[-2].minor.yy27, DIVIDE, yymsp[0].minor.yy27); }
-#line 1029 "./parse.c"
-  yymsp[-2].minor.yy27 = yylhsminor.yy27;
+#line 279 "./parse.y"
+{ yylhsminor.yy29 = call_bin_op(yymsp[-2].minor.yy29, DIVIDE, yymsp[0].minor.yy29); }
+#line 1217 "./parse.c"
+  yymsp[-2].minor.yy29 = yylhsminor.yy29;
         break;
       case 7: /* arg ::= primary */
-#line 92 "./parse.y"
-{ yylhsminor.yy27 = yymsp[0].minor.yy27; }
-#line 1035 "./parse.c"
-  yymsp[0].minor.yy27 = yylhsminor.yy27;
+#line 280 "./parse.y"
+{ yylhsminor.yy29 = yymsp[0].minor.yy29; }
+#line 1223 "./parse.c"
+  yymsp[0].minor.yy29 = yylhsminor.yy29;
         break;
       case 8: /* numeric ::= INTEGER */
-#line 95 "./parse.y"
-{ yylhsminor.yy27 = reduce_ident(INTEGER, yymsp[0].minor.yy0); }
-#line 1041 "./parse.c"
-  yymsp[0].minor.yy27 = yylhsminor.yy27;
+#line 283 "./parse.y"
+{ yylhsminor.yy29 = new_int(p, yymsp[0].minor.yy0, 10, 0); }
+#line 1229 "./parse.c"
+  yymsp[0].minor.yy29 = yylhsminor.yy29;
         break;
       default:
       /* (9) top_stmt ::= stmt (OPTIMIZED OUT) */ assert(yyruleno!=9);
@@ -1093,9 +1281,9 @@ static void yy_parse_failed(
   /* Here code is inserted which will be executed whenever the
   ** parser fails */
 /************ Begin %parse_failure code ***************************************/
-#line 74 "./parse.y"
+#line 262 "./parse.y"
  fprintf(stderr, "Parse failure\n"); 
-#line 1099 "./parse.c"
+#line 1287 "./parse.c"
 /************ End %parse_failure code *****************************************/
   ParseARG_STORE /* Suppress warning about unused %extra_argument variable */
   ParseCTX_STORE
@@ -1114,9 +1302,9 @@ static void yy_syntax_error(
   ParseCTX_FETCH
 #define TOKEN yyminor
 /************ Begin %syntax_error code ****************************************/
-#line 73 "./parse.y"
+#line 261 "./parse.y"
  fprintf(stderr, "Syntax error\n"); 
-#line 1120 "./parse.c"
+#line 1308 "./parse.c"
 /************ End %syntax_error code ******************************************/
   ParseARG_STORE /* Suppress warning about unused %extra_argument variable */
   ParseCTX_STORE
@@ -1142,9 +1330,9 @@ static void yy_accept(
   /* Here code is inserted which will be executed whenever the
   ** parser accepts */
 /*********** Begin %parse_accept code *****************************************/
-#line 72 "./parse.y"
+#line 260 "./parse.y"
  printf("Parse has completed successfully.\n"); 
-#line 1148 "./parse.c"
+#line 1336 "./parse.c"
 /*********** End %parse_accept code *******************************************/
   ParseARG_STORE /* Suppress warning about unused %extra_argument variable */
   ParseCTX_STORE
@@ -1353,7 +1541,7 @@ int ParseFallback(int iToken){
 #endif
   return 0;
 }
-#line 105 "./parse.y"
+#line 293 "./parse.y"
 
   void *pointerToMalloc(void){
     return malloc;
@@ -1363,11 +1551,12 @@ int ParseFallback(int iToken){
     return free;
   }
 
-  void freeNode(Node *p) {
-    if (p == NULL)
+  void freeNode(node *p) {
+    printf("free: %p", p);
+    if (p == NULL || (uintptr_t)p < 1000)
       return;
-    freeNode(p->child);
-    freeNode(p->sibling);
+    freeNode(p->car);
+    freeNode(p->cdr);
     free(p);
   }
 
@@ -1375,21 +1564,21 @@ int ParseFallback(int iToken){
     freeNode(root);
   }
 
-  void showNode(Node *p) {
-    if (p == NULL)
+  void showNode(node *p) {
+    if (p == NULL || (uintptr_t)p < 1000)
       return;
     if (p->value == NULL)
       return;
-    printf("id:%lu, type:%d, value:%s\n", (uintptr_t)p, p->type, p->value);
-    if (p->child != NULL)
-      printf("  child:%lu\n", (uintptr_t)p->child);
-    if (p->sibling != NULL)
-      printf("  sibling:%lu\n", (uintptr_t)p->sibling);
-    showNode(p->child);
-    showNode(p->sibling);
+    printf("id:%p, type:%d, value:%s\n", p, p->type, p->value);
+    if (p->car != NULL)
+      printf("  car:%p\n", p->car);
+    if (p->cdr != NULL)
+      printf("  cdr:%p\n", p->cdr);
+    showNode(p->car);
+    showNode(p->cdr);
   }
 
   void showAllNode(void) {
     showNode(root);
   }
-#line 1396 "./parse.c"
+#line 1585 "./parse.c"
