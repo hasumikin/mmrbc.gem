@@ -65,7 +65,7 @@ INTEGER = 5
         Parser.showAllNode
         puts
         puts
-        Parser.freeAllNode
+#        Parser.freeAllNode
 #        puts
 #        Parser.Parse(parser, INTEGER, "-2")
 #        Parser.Parse(parser, TIMES, "0")

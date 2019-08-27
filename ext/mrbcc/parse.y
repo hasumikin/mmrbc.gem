@@ -99,63 +99,110 @@ enum node_type {
   NODE_LAST
 };
 
-  typedef struct mrb_parser_state {
-    /* see mruby/include/mruby/compile.h */
-  } parser_state;
+  typedef enum {
+    ATOM,
+    CONS
+  } NodeType;
 
-  typedef struct node {
-    int type; //hh
-    char *value; //hh
+  typedef struct node node;
+
+  typedef struct {
     struct node *car;
     struct node *cdr;
-  } node;
+  } Cons;
+
+  typedef struct {
+    char *type;
+    int index;
+  } Atom;
+
+  struct node {
+    NodeType type;
+    union {
+      Atom atom;
+      Cons cons;
+    };
+  };
+
+///* parser structure */
+//struct mrb_parser_state {
+//  mrb_state *mrb;
+//  struct mrb_pool *pool;
+//  mrb_ast_node *cells;
+//  const char *s, *send;
+//#ifndef MRB_DISABLE_STDIO
+//  FILE *f;
+//#endif
+//  mrbc_context *cxt;
+//  mrb_sym filename_sym;
+//  uint16_t lineno;
+//  int column;
+//
+//  enum mrb_lex_state_enum lstate;
+//  mrb_ast_node *lex_strterm; /* (type nest_level beg . end) */
+//
+//  unsigned int cond_stack;
+//  unsigned int cmdarg_stack;
+//  int paren_nest;
+//  int lpar_beg;
+//  int in_def, in_single;
+//  mrb_bool cmd_start:1;
+//  mrb_ast_node *locals;
+//
+//  mrb_ast_node *pb;
+//  char *tokbuf;
+//  char buf[MRB_PARSER_TOKBUF_SIZE];
+//  int tidx;
+//  int tsiz;
+//
+//  mrb_ast_node *all_heredocs; /* list of mrb_parser_heredoc_info* */
+//  mrb_ast_node *heredocs_from_nextline;
+//  mrb_ast_node *parsing_heredoc;
+//  mrb_ast_node *lex_strterm_before_heredoc;
+//
+//  void *ylval;
+//
+//  size_t nerr;
+//  size_t nwarn;
+//  mrb_ast_node *tree;
+//
+//  mrb_bool no_optimize:1;
+//  mrb_bool on_eval:1;
+//  mrb_bool capture_errors:1;
+//  struct mrb_parser_message error_buffer[10];
+//  struct mrb_parser_message warn_buffer[10];
+//
+//  mrb_sym* filename_table;
+//  uint16_t filename_table_length;
+//  uint16_t current_filename_index;
+//
+//  struct mrb_jmpbuf* jmp;
+//};
+  typedef struct mrb_parser_state {
+    /* see mruby/include/mruby/compile.h */
+    node *cells;
+  } parser_state;
 
   parser_state *p;
   node *root;
 
-static char*
-parser_strndup(parser_state *p, const char *s, size_t len)
-{
-  char *b = (char *)malloc(len+1);
-  memcpy(b, s, len);
-  b[len] = '\0';
-  return b;
-}
-#undef strndup
-#define strndup(s,len) parser_strndup(p, s, len)
-static char*
-parser_strdup(parser_state *p, const char *s)
-{
-  return parser_strndup(p, s, strlen(s));
-}
-#undef strdup
-#define strdup(s) parser_strdup(p, s)
-
-  node* reduce_program(node *p1) {
-    node *p;
-    p = (node *)malloc(sizeof(node));
-    if (p == NULL) {
-      printf("Out Of Memory");
-    }
-    p->type = 0;
-    p->value = "program";
-    p->car = p1;
-    p->cdr = NULL;
-    root = p;
-    return p;
+  static char*
+  parser_strndup(parser_state *p, const char *s, size_t len)
+  {
+    char *b = (char *)malloc(len+1);//TODO リテラルプールへ
+    memcpy(b, s, len);
+    b[len] = '\0';
+    return b;
   }
-
-  node* new_begin(node *p1) {
-    node *p;
-    p = (node *)malloc(sizeof(node));
-    if (p == NULL)
-      printf("Out Of Memory");
-    p->type = 0;
-    p->value = "new";
-    p->car = p1;
-    p->cdr = NULL;
-    return p;
+  #undef strndup
+  #define strndup(s,len) parser_strndup(p, s, len)
+  static char*
+  parser_strdup(parser_state *p, const char *s)
+  {
+    return parser_strndup(p, s, strlen(s));
   }
+  #undef strdup
+  #define strdup(s) parser_strdup(p, s)
 
   static node*
   cons_gen(parser_state *p, node *car, node *cdr)
@@ -168,10 +215,11 @@ parser_strdup(parser_state *p, const char *s)
     //else {
     //  c = (node *)parser_palloc(p, sizeof(node));
     c = (node *)malloc(sizeof(node));
+    c->type = CONS;
     if (c == NULL) printf("Out Of Memory");
     //}
-    c->car = car;
-    c->cdr = cdr;
+    c->cons.car = car;
+    c->cons.cdr = cdr;
     //c->lineno = p->lineno;
     //c->filename_index = p->current_filename_index;
     /* beginning of next partial file; need to point the previous file */
@@ -181,6 +229,19 @@ parser_strdup(parser_state *p, const char *s)
     return c;
   }
   #define cons(a,b) cons_gen(p,(a),(b))
+
+  static node*
+  atom_node(const char *s)
+  {
+    node* a;
+    a = (node *)malloc(sizeof(node));
+    if (a == NULL) printf("Out Of Memory");
+    a->type = ATOM;
+    a->atom.type = strdup(s);
+    a->atom.index = 0;
+    return (node *)a;
+  }
+
 
   static node*
   list1_gen(parser_state *p, node *a)
@@ -223,36 +284,58 @@ list6_gen(parser_state *p, node *a, node *b, node *c, node *d, node *e, node *f)
   return cons(a, cons(b, cons(c, cons(d, cons(e, cons(f, 0))))));
 }
 #define list6(a,b,c,d,e,f) list6_gen(p, (a),(b),(c),(d),(e),(f))
+
   #define nsym(x) ((node*)(intptr_t)(x))
   #define nint(x) ((node*)(intptr_t)(x))
+
+  node* reduce_program(node *p1) {
+    node *n;
+    n = list2(atom_node(":program"), p1);
+    root = n;
+    return n;
+  }
+
   /* (:call a b c) */
   static node*
   new_call(parser_state *p, node *a, int b, node *c, int pass)
   {
-    node *bin;
-    bin->value = ":+";
-    bin->car = NULL;
-    bin->cdr = NULL;
-    node *n = list4(nint(pass?NODE_CALL:NODE_SCALL), a, bin, c);
+    node *n = list4(atom_node(":binary"), a, atom_node(":+"), c);
     //void_expr_error(p, a);
     //NODE_LINENO(n, a);
     return n;
   }
 
+  /* (:scope (vars..) (prog...)) */
+  static node*
+  new_scope(parser_state *p, node *body)
+  {
+  //  return cons((node*)NODE_SCOPE, cons(locals_node(p), body));
+  }
+
+  /* (:begin prog...) */
+  static node*
+  new_begin(parser_state *p, node *body)
+  {
+    if (body) {
+      return list2(atom_node("stmt_new"), body);
+    }
+    return cons(atom_node("stmt_new"), 0);
+  }
+
   static node*
   call_bin_op(node *recv, int m, node *arg1)
   {
-    node *n = new_call(p, recv, m, list1(list1(arg1)), 1);
-    n->value = "binary";
+    //node *n = new_call(p, recv, m, list1(list1(arg1)), 1);
+    node *n = new_call(p, recv, m, arg1, 1);
     return n;
   }
 
   /* (:int . i) */
   static node*
   new_int(parser_state *p, const char *s, int base, int suffix)
-  {
-    node* result = list3((node*)NODE_INT, (node*)strdup(s), nint(base));
-    result->value = "@int";
+  { // base は10進法などを表す
+    //node* result = list3((node*)NODE_INT, (node*)strdup(s), nint(base));
+    node* result = list2(atom_node(":@int"), atom_node(s));
     return result;
   }
 }
@@ -268,7 +351,7 @@ list6_gen(parser_state *p, node *a, node *b, node *c, node *d, node *e, node *f)
 
 program(A) ::= top_compstmt(B).   { A = reduce_program(B); }
 top_compstmt(A) ::= top_stmts(B) opt_terms. { A = B; }
-top_stmts(A) ::= top_stmt(B). { A = new_begin(B); }
+top_stmts(A) ::= top_stmt(B). { A = new_begin(p, B); }
 top_stmt ::= stmt.
 //stmts(A) ::= stmt(B). { A = new_begin(B); }
 stmt ::= expr.
@@ -303,8 +386,8 @@ term ::= SEMICOLON.
     printf("free: %p", p);
     if (p == NULL || (uintptr_t)p < 1000)
       return;
-    freeNode(p->car);
-    freeNode(p->cdr);
+    freeNode(p->cons.car);
+    freeNode(p->cons.cdr);
     free(p);
   }
 
@@ -313,17 +396,20 @@ term ::= SEMICOLON.
   }
 
   void showNode(node *p) {
-    if (p == NULL || (uintptr_t)p < 1000)
+    if (p == NULL)
       return;
-    if (p->value == NULL)
-      return;
-    printf("id:%p, type:%d, value:%s\n", p, p->type, p->value);
-    if (p->car != NULL)
-      printf("  car:%p\n", p->car);
-    if (p->cdr != NULL)
-      printf("  cdr:%p\n", p->cdr);
-    showNode(p->car);
-    showNode(p->cdr);
+    //printf("id:%p, value:%s\n", p, p->value);
+    printf("node:%p\n", p);
+    if (p->type == ATOM) {
+      printf("  atom:%s\n", p->atom.type);
+    } else {
+      if (p->cons.car != NULL)
+        printf("  car:%p\n", p->cons.car);
+      if (p->cons.cdr != NULL)
+        printf("  cdr:%p\n", p->cons.cdr);
+      showNode(p->cons.car);
+      showNode(p->cons.cdr);
+    }
   }
 
   void showAllNode(void) {
