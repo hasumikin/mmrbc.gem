@@ -206,6 +206,7 @@ enum node_type {
   typedef struct mrb_parser_state {
     /* see mruby/include/mruby/compile.h */
     node *cells;
+    node *locals;
   } parser_state;
 
   parser_state *p;
@@ -310,14 +311,40 @@ list6_gen(parser_state *p, node *a, node *b, node *c, node *d, node *e, node *f)
 }
 #define list6(a,b,c,d,e,f) list6_gen(p, (a),(b),(c),(d),(e),(f))
 
+static node*
+append_gen(parser_state *p, node *a, node *b)
+{
+  node *c = a;
+  if (!a) return b;
+  while (c->cons.cdr) {
+    c = c->cons.cdr;
+  }
+  if (b) {
+    c->cons.cdr = b;
+  }
+  node *add = list1(list1(atom_node(":stmts_add")));
+  add->cons.car->cons.cdr = a;
+  return add;
+}
+#define append(a,b) append_gen(p,(a),(b))
+#define push(a,b) append_gen(p,(a),list1(b))
+
   #define nsym(x) ((node*)(intptr_t)(x))
   #define nint(x) ((node*)(intptr_t)(x))
 
-  node* reduce_program(node *p1) {
-    node *n;
-    n = list2(atom_node(":program"), p1);
-    root = n;
-    return n;
+  static node*
+  locals_node(parser_state *p)
+  {
+    //return p->locals->cons.car;
+    //return p->locals ? p->locals->cons.car : NULL;
+  }
+
+  /* (:scope (vars..) (prog...)) */
+  static node*
+  new_scope(parser_state *p, node *body)
+  {
+    return cons(atom_node(":stmts_add"), cons(locals_node(p), body));
+    //return cons(atom_node(":program"), body);
   }
 
   /* (:call a b c) */
@@ -330,22 +357,21 @@ list6_gen(parser_state *p, node *a, node *b, node *c, node *d, node *e, node *f)
     return n;
   }
 
-  /* (:scope (vars..) (prog...)) */
-  static node*
-  new_scope(parser_state *p, node *body)
-  {
-  //  return cons((node*)NODE_SCOPE, cons(locals_node(p), body));
-  }
-
   /* (:begin prog...) */
   static node*
   new_begin(parser_state *p, node *body)
   {
     if (body) {
-      return list2(atom_node("stmt_new"), body);
+      node *add, *new;
+      add = list1(atom_node(":stmts_add"));
+      new = list2(list1(atom_node(":stmts_new")), body);
+      add->cons.cdr = new;
+      return list1(add);
     }
-    return cons(atom_node("stmt_new"), 0);
+    return cons(atom_node(":stmts_new"), 0);
   }
+
+  #define newline_node(n) (n)
 
   static node*
   call_bin_op(node *recv, int m, node *arg1)
@@ -363,7 +389,30 @@ list6_gen(parser_state *p, node *a, node *b, node *c, node *d, node *e, node *f)
     node* result = list2(atom_node(":@int"), atom_node(s));
     return result;
   }
-#line 367 "./parse.c"
+
+  /* (:self) */
+  static node*
+  new_self(parser_state *p)
+  {
+    return list1(atom_node(":self"));
+  }
+
+  /* (:fcall self mid args) */
+  static node*
+  new_fcall(parser_state *p, node *b, node *c)
+  {
+    node *n = new_self(p);
+    n = list4(atom_node(":command"), n, b, c);
+    return n;
+  }
+
+  /* (:block_arg . a) */
+  static node*
+  new_block_arg(parser_state *p, node *a)
+  {
+    return cons((node*)NODE_BLOCK_ARG, a);
+  }
+#line 416 "./parse.c"
 /**************** End of %include directives **********************************/
 /* These constants specify the various numeric values for terminal symbols
 ** in a format understandable to "makeheaders".  This section is blank unless
@@ -427,13 +476,13 @@ list6_gen(parser_state *p, node *a, node *b, node *c, node *d, node *e, node *f)
 #endif
 /************* Begin control #defines *****************************************/
 #define YYCODETYPE unsigned char
-#define YYNOCODE 21
+#define YYNOCODE 35
 #define YYACTIONTYPE unsigned char
 #define ParseTOKENTYPE  char* 
 typedef union {
   int yyinit;
   ParseTOKENTYPE yy0;
-  node* yy29;
+  node* yy43;
 } YYMINORTYPE;
 #ifndef YYSTACKDEPTH
 #define YYSTACKDEPTH 100
@@ -448,17 +497,17 @@ typedef union {
 #define ParseCTX_PARAM
 #define ParseCTX_FETCH
 #define ParseCTX_STORE
-#define YYNSTATE             11
-#define YYNRULE              20
-#define YYNTOKEN             8
-#define YY_MAX_SHIFT         10
-#define YY_MIN_SHIFTREDUCE   25
-#define YY_MAX_SHIFTREDUCE   44
-#define YY_ERROR_ACTION      45
-#define YY_ACCEPT_ACTION     46
-#define YY_NO_ACTION         47
-#define YY_MIN_REDUCE        48
-#define YY_MAX_REDUCE        67
+#define YYNSTATE             17
+#define YYNRULE              35
+#define YYNTOKEN             13
+#define YY_MAX_SHIFT         16
+#define YY_MIN_SHIFTREDUCE   43
+#define YY_MAX_SHIFTREDUCE   77
+#define YY_ERROR_ACTION      78
+#define YY_ACCEPT_ACTION     79
+#define YY_NO_ACTION         80
+#define YY_MIN_REDUCE        81
+#define YY_MAX_REDUCE        115
 /************* End control #defines *******************************************/
 #define YY_NLOOKAHEAD ((int)(sizeof(yy_lookahead)/sizeof(yy_lookahead[0])))
 
@@ -525,37 +574,50 @@ typedef union {
 **  yy_default[]       Default action for each state.
 **
 *********** Begin parsing tables **********************************************/
-#define YY_ACTTAB_COUNT (42)
+#define YY_ACTTAB_COUNT (110)
 static const YYACTIONTYPE yy_action[] = {
- /*     0 */    46,   10,    5,   65,   50,   50,   50,    7,   55,   55,
- /*    10 */    55,   54,   55,   55,   55,   53,   55,   55,   55,   33,
- /*    20 */     8,   55,   55,   55,    9,   55,   55,   55,    4,    3,
- /*    30 */     1,    2,   49,   47,   43,   44,    1,    2,   48,   47,
- /*    40 */     6,    6,
+ /*     0 */    79,   16,    8,   89,   83,   84,    3,   84,   84,   84,
+ /*    10 */    13,   84,    2,   58,   59,   70,   71,   90,   13,   13,
+ /*    20 */    13,   85,   12,   85,   85,   85,   13,   85,    2,   87,
+ /*    30 */    12,   12,   12,   58,   13,   13,   13,  113,    7,    6,
+ /*    40 */     4,    5,   11,   76,   77,   86,   86,    9,    4,    5,
+ /*    50 */    11,   11,   11,   58,   59,   70,   71,   76,   77,   95,
+ /*    60 */    81,   10,   80,   80,   80,   80,   94,   95,   95,   95,
+ /*    70 */    14,   80,   80,   80,   94,   94,   94,   15,   14,   14,
+ /*    80 */    14,   80,   80,   80,   80,   15,   15,   15,   80,   80,
+ /*    90 */    80,   82,   80,   80,    1,   80,   80,   80,   80,   80,
+ /*   100 */    80,   80,   80,   80,   80,   80,   80,   80,   80,    1,
 };
 static const YYCODETYPE yy_lookahead[] = {
- /*     0 */     8,    9,   10,   20,   12,   13,   14,   15,   16,   17,
- /*    10 */    18,   15,   16,   17,   18,   15,   16,   17,   18,    5,
- /*    20 */    15,   16,   17,   18,   15,   16,   17,   18,    1,    2,
- /*    30 */     3,    4,   11,   21,    6,    7,    3,    4,    0,   21,
- /*    40 */    19,   20,   21,   21,   21,   21,   21,
+ /*     0 */    13,   14,   15,   30,   17,   18,    5,   20,   21,   22,
+ /*    10 */    23,   24,   25,    7,    8,    9,   10,   17,   31,   32,
+ /*    20 */    33,   18,   23,   20,   21,   22,   23,   24,   25,   29,
+ /*    30 */    31,   32,   33,    7,   31,   32,   33,   34,    1,    2,
+ /*    40 */     3,    4,   23,   11,   12,   26,   27,   28,    3,    4,
+ /*    50 */    31,   32,   33,    7,    8,    9,   10,   11,   12,   23,
+ /*    60 */     0,    6,   35,   35,   35,   35,   23,   31,   32,   33,
+ /*    70 */    23,   35,   35,   35,   31,   32,   33,   23,   31,   32,
+ /*    80 */    33,   35,   35,   35,   35,   31,   32,   33,   35,   35,
+ /*    90 */    35,   16,   35,   35,   19,   35,   35,   35,   35,   35,
+ /*   100 */    35,   35,   35,   35,   35,   35,   35,   35,   35,   34,
 };
-#define YY_SHIFT_COUNT    (10)
+#define YY_SHIFT_COUNT    (16)
 #define YY_SHIFT_MIN      (0)
-#define YY_SHIFT_MAX      (38)
+#define YY_SHIFT_MAX      (60)
 static const unsigned char yy_shift_ofst[] = {
- /*     0 */    14,   14,   14,   14,   14,   28,   28,   27,   33,   33,
- /*    10 */    38,
+ /*     0 */     6,   46,   26,   26,   26,   26,   26,   26,   32,   55,
+ /*    10 */     1,   37,   37,   37,   45,   45,   60,
 };
-#define YY_REDUCE_COUNT (6)
-#define YY_REDUCE_MIN   (-17)
-#define YY_REDUCE_MAX   (21)
+#define YY_REDUCE_COUNT (10)
+#define YY_REDUCE_MIN   (-27)
+#define YY_REDUCE_MAX   (75)
 static const signed char yy_reduce_ofst[] = {
- /*     0 */    -8,   -4,    0,    5,    9,   21,  -17,
+ /*     0 */   -13,    3,   19,   -1,   36,   43,   47,   54,   75,    0,
+ /*    10 */   -27,
 };
 static const YYACTIONTYPE yy_default[] = {
- /*     0 */    45,   45,   45,   45,   45,   62,   63,   59,   52,   51,
- /*    10 */    45,
+ /*     0 */    98,  111,   78,   78,   78,   78,   78,   78,  110,   98,
+ /*    10 */    78,   91,   88,  102,   93,   92,   78,
 };
 /********** End of lemon-generated parsing tables *****************************/
 
@@ -667,22 +729,36 @@ static const char *const yyTokenName[] = {
   /*    2 */ "MINUS",
   /*    3 */ "DIVIDE",
   /*    4 */ "TIMES",
-  /*    5 */ "INTEGER",
-  /*    6 */ "NL",
-  /*    7 */ "SEMICOLON",
-  /*    8 */ "program",
-  /*    9 */ "top_compstmt",
-  /*   10 */ "top_stmts",
-  /*   11 */ "opt_terms",
-  /*   12 */ "top_stmt",
-  /*   13 */ "stmt",
-  /*   14 */ "expr",
-  /*   15 */ "arg",
-  /*   16 */ "primary",
-  /*   17 */ "literal",
-  /*   18 */ "numeric",
+  /*    5 */ "AMPER",
+  /*    6 */ "COMMA",
+  /*    7 */ "INTEGER",
+  /*    8 */ "IDENTIFIER",
+  /*    9 */ "CONSTANT",
+  /*   10 */ "FID",
+  /*   11 */ "NL",
+  /*   12 */ "SEMICOLON",
+  /*   13 */ "program",
+  /*   14 */ "top_compstmt",
+  /*   15 */ "top_stmts",
+  /*   16 */ "opt_terms",
+  /*   17 */ "none",
+  /*   18 */ "top_stmt",
   /*   19 */ "terms",
-  /*   20 */ "term",
+  /*   20 */ "stmt",
+  /*   21 */ "expr",
+  /*   22 */ "command_call",
+  /*   23 */ "arg",
+  /*   24 */ "command",
+  /*   25 */ "operation",
+  /*   26 */ "command_args",
+  /*   27 */ "call_args",
+  /*   28 */ "args",
+  /*   29 */ "opt_block_arg",
+  /*   30 */ "block_arg",
+  /*   31 */ "primary",
+  /*   32 */ "literal",
+  /*   33 */ "numeric",
+  /*   34 */ "term",
 };
 #endif /* defined(YYCOVERAGE) || !defined(NDEBUG) */
 
@@ -692,24 +768,39 @@ static const char *const yyTokenName[] = {
 static const char *const yyRuleName[] = {
  /*   0 */ "program ::= top_compstmt",
  /*   1 */ "top_compstmt ::= top_stmts opt_terms",
- /*   2 */ "top_stmts ::= top_stmt",
- /*   3 */ "arg ::= arg PLUS arg",
- /*   4 */ "arg ::= arg MINUS arg",
- /*   5 */ "arg ::= arg TIMES arg",
- /*   6 */ "arg ::= arg DIVIDE arg",
- /*   7 */ "arg ::= primary",
- /*   8 */ "numeric ::= INTEGER",
- /*   9 */ "top_stmt ::= stmt",
- /*  10 */ "stmt ::= expr",
- /*  11 */ "expr ::= arg",
- /*  12 */ "primary ::= literal",
- /*  13 */ "literal ::= numeric",
- /*  14 */ "opt_terms ::=",
- /*  15 */ "opt_terms ::= terms",
- /*  16 */ "terms ::= term",
- /*  17 */ "terms ::= terms term",
- /*  18 */ "term ::= NL",
- /*  19 */ "term ::= SEMICOLON",
+ /*   2 */ "top_stmts ::= none",
+ /*   3 */ "top_stmts ::= top_stmt",
+ /*   4 */ "top_stmts ::= top_stmts terms top_stmt",
+ /*   5 */ "command ::= operation command_args",
+ /*   6 */ "call_args ::= args opt_block_arg",
+ /*   7 */ "block_arg ::= AMPER arg",
+ /*   8 */ "opt_block_arg ::= COMMA block_arg",
+ /*   9 */ "opt_block_arg ::= none",
+ /*  10 */ "args ::= arg",
+ /*  11 */ "arg ::= arg PLUS arg",
+ /*  12 */ "arg ::= arg MINUS arg",
+ /*  13 */ "arg ::= arg TIMES arg",
+ /*  14 */ "arg ::= arg DIVIDE arg",
+ /*  15 */ "numeric ::= INTEGER",
+ /*  16 */ "operation ::= IDENTIFIER",
+ /*  17 */ "none ::=",
+ /*  18 */ "top_stmt ::= stmt",
+ /*  19 */ "stmt ::= expr",
+ /*  20 */ "expr ::= command_call",
+ /*  21 */ "expr ::= arg",
+ /*  22 */ "command_call ::= command",
+ /*  23 */ "command_args ::= call_args",
+ /*  24 */ "arg ::= primary",
+ /*  25 */ "primary ::= literal",
+ /*  26 */ "literal ::= numeric",
+ /*  27 */ "operation ::= CONSTANT",
+ /*  28 */ "operation ::= FID",
+ /*  29 */ "opt_terms ::=",
+ /*  30 */ "opt_terms ::= terms",
+ /*  31 */ "terms ::= term",
+ /*  32 */ "terms ::= terms term",
+ /*  33 */ "term ::= NL",
+ /*  34 */ "term ::= SEMICOLON",
 };
 #endif /* NDEBUG */
 
@@ -1126,26 +1217,41 @@ static void yy_shift(
 /* For rule J, yyRuleInfoLhs[J] contains the symbol on the left-hand side
 ** of that rule */
 static const YYCODETYPE yyRuleInfoLhs[] = {
-     8,  /* (0) program ::= top_compstmt */
-     9,  /* (1) top_compstmt ::= top_stmts opt_terms */
-    10,  /* (2) top_stmts ::= top_stmt */
-    15,  /* (3) arg ::= arg PLUS arg */
-    15,  /* (4) arg ::= arg MINUS arg */
-    15,  /* (5) arg ::= arg TIMES arg */
-    15,  /* (6) arg ::= arg DIVIDE arg */
-    15,  /* (7) arg ::= primary */
-    18,  /* (8) numeric ::= INTEGER */
-    12,  /* (9) top_stmt ::= stmt */
-    13,  /* (10) stmt ::= expr */
-    14,  /* (11) expr ::= arg */
-    16,  /* (12) primary ::= literal */
-    17,  /* (13) literal ::= numeric */
-    11,  /* (14) opt_terms ::= */
-    11,  /* (15) opt_terms ::= terms */
-    19,  /* (16) terms ::= term */
-    19,  /* (17) terms ::= terms term */
-    20,  /* (18) term ::= NL */
-    20,  /* (19) term ::= SEMICOLON */
+    13,  /* (0) program ::= top_compstmt */
+    14,  /* (1) top_compstmt ::= top_stmts opt_terms */
+    15,  /* (2) top_stmts ::= none */
+    15,  /* (3) top_stmts ::= top_stmt */
+    15,  /* (4) top_stmts ::= top_stmts terms top_stmt */
+    24,  /* (5) command ::= operation command_args */
+    27,  /* (6) call_args ::= args opt_block_arg */
+    30,  /* (7) block_arg ::= AMPER arg */
+    29,  /* (8) opt_block_arg ::= COMMA block_arg */
+    29,  /* (9) opt_block_arg ::= none */
+    28,  /* (10) args ::= arg */
+    23,  /* (11) arg ::= arg PLUS arg */
+    23,  /* (12) arg ::= arg MINUS arg */
+    23,  /* (13) arg ::= arg TIMES arg */
+    23,  /* (14) arg ::= arg DIVIDE arg */
+    33,  /* (15) numeric ::= INTEGER */
+    25,  /* (16) operation ::= IDENTIFIER */
+    17,  /* (17) none ::= */
+    18,  /* (18) top_stmt ::= stmt */
+    20,  /* (19) stmt ::= expr */
+    21,  /* (20) expr ::= command_call */
+    21,  /* (21) expr ::= arg */
+    22,  /* (22) command_call ::= command */
+    26,  /* (23) command_args ::= call_args */
+    23,  /* (24) arg ::= primary */
+    31,  /* (25) primary ::= literal */
+    32,  /* (26) literal ::= numeric */
+    25,  /* (27) operation ::= CONSTANT */
+    25,  /* (28) operation ::= FID */
+    16,  /* (29) opt_terms ::= */
+    16,  /* (30) opt_terms ::= terms */
+    19,  /* (31) terms ::= term */
+    19,  /* (32) terms ::= terms term */
+    34,  /* (33) term ::= NL */
+    34,  /* (34) term ::= SEMICOLON */
 };
 
 /* For rule J, yyRuleInfoNRhs[J] contains the negative of the number
@@ -1153,24 +1259,39 @@ static const YYCODETYPE yyRuleInfoLhs[] = {
 static const signed char yyRuleInfoNRhs[] = {
    -1,  /* (0) program ::= top_compstmt */
    -2,  /* (1) top_compstmt ::= top_stmts opt_terms */
-   -1,  /* (2) top_stmts ::= top_stmt */
-   -3,  /* (3) arg ::= arg PLUS arg */
-   -3,  /* (4) arg ::= arg MINUS arg */
-   -3,  /* (5) arg ::= arg TIMES arg */
-   -3,  /* (6) arg ::= arg DIVIDE arg */
-   -1,  /* (7) arg ::= primary */
-   -1,  /* (8) numeric ::= INTEGER */
-   -1,  /* (9) top_stmt ::= stmt */
-   -1,  /* (10) stmt ::= expr */
-   -1,  /* (11) expr ::= arg */
-   -1,  /* (12) primary ::= literal */
-   -1,  /* (13) literal ::= numeric */
-    0,  /* (14) opt_terms ::= */
-   -1,  /* (15) opt_terms ::= terms */
-   -1,  /* (16) terms ::= term */
-   -2,  /* (17) terms ::= terms term */
-   -1,  /* (18) term ::= NL */
-   -1,  /* (19) term ::= SEMICOLON */
+   -1,  /* (2) top_stmts ::= none */
+   -1,  /* (3) top_stmts ::= top_stmt */
+   -3,  /* (4) top_stmts ::= top_stmts terms top_stmt */
+   -2,  /* (5) command ::= operation command_args */
+   -2,  /* (6) call_args ::= args opt_block_arg */
+   -2,  /* (7) block_arg ::= AMPER arg */
+   -2,  /* (8) opt_block_arg ::= COMMA block_arg */
+   -1,  /* (9) opt_block_arg ::= none */
+   -1,  /* (10) args ::= arg */
+   -3,  /* (11) arg ::= arg PLUS arg */
+   -3,  /* (12) arg ::= arg MINUS arg */
+   -3,  /* (13) arg ::= arg TIMES arg */
+   -3,  /* (14) arg ::= arg DIVIDE arg */
+   -1,  /* (15) numeric ::= INTEGER */
+   -1,  /* (16) operation ::= IDENTIFIER */
+    0,  /* (17) none ::= */
+   -1,  /* (18) top_stmt ::= stmt */
+   -1,  /* (19) stmt ::= expr */
+   -1,  /* (20) expr ::= command_call */
+   -1,  /* (21) expr ::= arg */
+   -1,  /* (22) command_call ::= command */
+   -1,  /* (23) command_args ::= call_args */
+   -1,  /* (24) arg ::= primary */
+   -1,  /* (25) primary ::= literal */
+   -1,  /* (26) literal ::= numeric */
+   -1,  /* (27) operation ::= CONSTANT */
+   -1,  /* (28) operation ::= FID */
+    0,  /* (29) opt_terms ::= */
+   -1,  /* (30) opt_terms ::= terms */
+   -1,  /* (31) terms ::= term */
+   -2,  /* (32) terms ::= terms term */
+   -1,  /* (33) term ::= NL */
+   -1,  /* (34) term ::= SEMICOLON */
 };
 
 static void yy_accept(yyParser*);  /* Forward Declaration */
@@ -1258,71 +1379,128 @@ static YYACTIONTYPE yy_reduce(
 /********** Begin reduce actions **********************************************/
         YYMINORTYPE yylhsminor;
       case 0: /* program ::= top_compstmt */
-#line 352 "./parse.y"
-{ yylhsminor.yy29 = reduce_program(yymsp[0].minor.yy29); }
-#line 1264 "./parse.c"
-  yymsp[0].minor.yy29 = yylhsminor.yy29;
+#line 401 "./parse.y"
+{
+//  if (!p->locals) p->locals = cons(atom_node(":program"),0);
+  //if (!p->locals) {node *a = cons(atom_node(":program"),0);}
+  root = cons(atom_node(":program"), yymsp[0].minor.yy43); }
+#line 1388 "./parse.c"
         break;
       case 1: /* top_compstmt ::= top_stmts opt_terms */
-#line 353 "./parse.y"
-{ yylhsminor.yy29 = yymsp[-1].minor.yy29; }
-#line 1270 "./parse.c"
-  yymsp[-1].minor.yy29 = yylhsminor.yy29;
+#line 405 "./parse.y"
+{ yylhsminor.yy43 = yymsp[-1].minor.yy43; }
+#line 1393 "./parse.c"
+  yymsp[-1].minor.yy43 = yylhsminor.yy43;
         break;
-      case 2: /* top_stmts ::= top_stmt */
-#line 354 "./parse.y"
-{ yylhsminor.yy29 = new_begin(p, yymsp[0].minor.yy29); }
-#line 1276 "./parse.c"
-  yymsp[0].minor.yy29 = yylhsminor.yy29;
+      case 2: /* top_stmts ::= none */
+#line 406 "./parse.y"
+{ yymsp[0].minor.yy43 = new_begin(p, 0); }
+#line 1399 "./parse.c"
         break;
-      case 3: /* arg ::= arg PLUS arg */
-#line 359 "./parse.y"
-{ yylhsminor.yy29 = call_bin_op(yymsp[-2].minor.yy29, PLUS ,yymsp[0].minor.yy29); }
-#line 1282 "./parse.c"
-  yymsp[-2].minor.yy29 = yylhsminor.yy29;
+      case 3: /* top_stmts ::= top_stmt */
+#line 407 "./parse.y"
+{ yylhsminor.yy43 = new_begin(p, yymsp[0].minor.yy43); }
+#line 1404 "./parse.c"
+  yymsp[0].minor.yy43 = yylhsminor.yy43;
         break;
-      case 4: /* arg ::= arg MINUS arg */
-#line 360 "./parse.y"
-{ yylhsminor.yy29 = call_bin_op(yymsp[-2].minor.yy29, MINUS, yymsp[0].minor.yy29); }
-#line 1288 "./parse.c"
-  yymsp[-2].minor.yy29 = yylhsminor.yy29;
+      case 4: /* top_stmts ::= top_stmts terms top_stmt */
+#line 408 "./parse.y"
+{ yylhsminor.yy43 = push(yymsp[-2].minor.yy43, newline_node(yymsp[0].minor.yy43)); }
+#line 1410 "./parse.c"
+  yymsp[-2].minor.yy43 = yylhsminor.yy43;
         break;
-      case 5: /* arg ::= arg TIMES arg */
-#line 361 "./parse.y"
-{ yylhsminor.yy29 = call_bin_op(yymsp[-2].minor.yy29, TIMES, yymsp[0].minor.yy29); }
-#line 1294 "./parse.c"
-  yymsp[-2].minor.yy29 = yylhsminor.yy29;
+      case 5: /* command ::= operation command_args */
+#line 417 "./parse.y"
+{ yylhsminor.yy43 = new_fcall(p, yymsp[-1].minor.yy43, yymsp[0].minor.yy43); }
+#line 1416 "./parse.c"
+  yymsp[-1].minor.yy43 = yylhsminor.yy43;
         break;
-      case 6: /* arg ::= arg DIVIDE arg */
-#line 362 "./parse.y"
-{ yylhsminor.yy29 = call_bin_op(yymsp[-2].minor.yy29, DIVIDE, yymsp[0].minor.yy29); }
-#line 1300 "./parse.c"
-  yymsp[-2].minor.yy29 = yylhsminor.yy29;
+      case 6: /* call_args ::= args opt_block_arg */
+#line 421 "./parse.y"
+{ yylhsminor.yy43 = cons(yymsp[-1].minor.yy43, yymsp[0].minor.yy43); }
+#line 1422 "./parse.c"
+  yymsp[-1].minor.yy43 = yylhsminor.yy43;
         break;
-      case 7: /* arg ::= primary */
-#line 363 "./parse.y"
-{ yylhsminor.yy29 = yymsp[0].minor.yy29; }
-#line 1306 "./parse.c"
-  yymsp[0].minor.yy29 = yylhsminor.yy29;
+      case 7: /* block_arg ::= AMPER arg */
+#line 423 "./parse.y"
+{ yymsp[-1].minor.yy43 = new_block_arg(p, yymsp[0].minor.yy43); }
+#line 1428 "./parse.c"
         break;
-      case 8: /* numeric ::= INTEGER */
-#line 366 "./parse.y"
-{ yylhsminor.yy29 = new_int(p, yymsp[0].minor.yy0, 10, 0); }
-#line 1312 "./parse.c"
-  yymsp[0].minor.yy29 = yylhsminor.yy29;
+      case 8: /* opt_block_arg ::= COMMA block_arg */
+#line 424 "./parse.y"
+{ yymsp[-1].minor.yy43 = yymsp[0].minor.yy43; }
+#line 1433 "./parse.c"
+        break;
+      case 9: /* opt_block_arg ::= none */
+#line 425 "./parse.y"
+{ yymsp[0].minor.yy43 = 0; }
+#line 1438 "./parse.c"
+        break;
+      case 10: /* args ::= arg */
+#line 427 "./parse.y"
+{ yylhsminor.yy43 = cons(yymsp[0].minor.yy43, 0); }
+#line 1443 "./parse.c"
+  yymsp[0].minor.yy43 = yylhsminor.yy43;
+        break;
+      case 11: /* arg ::= arg PLUS arg */
+#line 429 "./parse.y"
+{ yylhsminor.yy43 = call_bin_op(yymsp[-2].minor.yy43, PLUS ,yymsp[0].minor.yy43); }
+#line 1449 "./parse.c"
+  yymsp[-2].minor.yy43 = yylhsminor.yy43;
+        break;
+      case 12: /* arg ::= arg MINUS arg */
+#line 430 "./parse.y"
+{ yylhsminor.yy43 = call_bin_op(yymsp[-2].minor.yy43, MINUS, yymsp[0].minor.yy43); }
+#line 1455 "./parse.c"
+  yymsp[-2].minor.yy43 = yylhsminor.yy43;
+        break;
+      case 13: /* arg ::= arg TIMES arg */
+#line 431 "./parse.y"
+{ yylhsminor.yy43 = call_bin_op(yymsp[-2].minor.yy43, TIMES, yymsp[0].minor.yy43); }
+#line 1461 "./parse.c"
+  yymsp[-2].minor.yy43 = yylhsminor.yy43;
+        break;
+      case 14: /* arg ::= arg DIVIDE arg */
+#line 432 "./parse.y"
+{ yylhsminor.yy43 = call_bin_op(yymsp[-2].minor.yy43, DIVIDE, yymsp[0].minor.yy43); }
+#line 1467 "./parse.c"
+  yymsp[-2].minor.yy43 = yylhsminor.yy43;
+        break;
+      case 15: /* numeric ::= INTEGER */
+#line 436 "./parse.y"
+{ yylhsminor.yy43 = new_int(p, yymsp[0].minor.yy0, 10, 0); }
+#line 1473 "./parse.c"
+  yymsp[0].minor.yy43 = yylhsminor.yy43;
+        break;
+      case 16: /* operation ::= IDENTIFIER */
+#line 438 "./parse.y"
+{ yylhsminor.yy43 = list1(atom_node(yymsp[0].minor.yy0)); }
+#line 1479 "./parse.c"
+  yymsp[0].minor.yy43 = yylhsminor.yy43;
+        break;
+      case 17: /* none ::= */
+#line 449 "./parse.y"
+{ yymsp[1].minor.yy43 = 0; }
+#line 1485 "./parse.c"
         break;
       default:
-      /* (9) top_stmt ::= stmt (OPTIMIZED OUT) */ assert(yyruleno!=9);
-      /* (10) stmt ::= expr (OPTIMIZED OUT) */ assert(yyruleno!=10);
-      /* (11) expr ::= arg */ yytestcase(yyruleno==11);
-      /* (12) primary ::= literal (OPTIMIZED OUT) */ assert(yyruleno!=12);
-      /* (13) literal ::= numeric (OPTIMIZED OUT) */ assert(yyruleno!=13);
-      /* (14) opt_terms ::= */ yytestcase(yyruleno==14);
-      /* (15) opt_terms ::= terms */ yytestcase(yyruleno==15);
-      /* (16) terms ::= term (OPTIMIZED OUT) */ assert(yyruleno!=16);
-      /* (17) terms ::= terms term */ yytestcase(yyruleno==17);
-      /* (18) term ::= NL */ yytestcase(yyruleno==18);
-      /* (19) term ::= SEMICOLON */ yytestcase(yyruleno==19);
+      /* (18) top_stmt ::= stmt (OPTIMIZED OUT) */ assert(yyruleno!=18);
+      /* (19) stmt ::= expr (OPTIMIZED OUT) */ assert(yyruleno!=19);
+      /* (20) expr ::= command_call (OPTIMIZED OUT) */ assert(yyruleno!=20);
+      /* (21) expr ::= arg */ yytestcase(yyruleno==21);
+      /* (22) command_call ::= command (OPTIMIZED OUT) */ assert(yyruleno!=22);
+      /* (23) command_args ::= call_args (OPTIMIZED OUT) */ assert(yyruleno!=23);
+      /* (24) arg ::= primary (OPTIMIZED OUT) */ assert(yyruleno!=24);
+      /* (25) primary ::= literal (OPTIMIZED OUT) */ assert(yyruleno!=25);
+      /* (26) literal ::= numeric (OPTIMIZED OUT) */ assert(yyruleno!=26);
+      /* (27) operation ::= CONSTANT */ yytestcase(yyruleno==27);
+      /* (28) operation ::= FID */ yytestcase(yyruleno==28);
+      /* (29) opt_terms ::= */ yytestcase(yyruleno==29);
+      /* (30) opt_terms ::= terms */ yytestcase(yyruleno==30);
+      /* (31) terms ::= term (OPTIMIZED OUT) */ assert(yyruleno!=31);
+      /* (32) terms ::= terms term */ yytestcase(yyruleno==32);
+      /* (33) term ::= NL */ yytestcase(yyruleno==33);
+      /* (34) term ::= SEMICOLON */ yytestcase(yyruleno==34);
         break;
 /********** End reduce actions ************************************************/
   };
@@ -1364,9 +1542,9 @@ static void yy_parse_failed(
   /* Here code is inserted which will be executed whenever the
   ** parser fails */
 /************ Begin %parse_failure code ***************************************/
-#line 345 "./parse.y"
- fprintf(stderr, "Parse failure\n"); 
-#line 1370 "./parse.c"
+#line 394 "./parse.y"
+ fprintf(stderr, "Parse failure\n"); exit(1); 
+#line 1548 "./parse.c"
 /************ End %parse_failure code *****************************************/
   ParseARG_STORE /* Suppress warning about unused %extra_argument variable */
   ParseCTX_STORE
@@ -1385,9 +1563,9 @@ static void yy_syntax_error(
   ParseCTX_FETCH
 #define TOKEN yyminor
 /************ Begin %syntax_error code ****************************************/
-#line 344 "./parse.y"
- fprintf(stderr, "Syntax error\n"); 
-#line 1391 "./parse.c"
+#line 393 "./parse.y"
+ fprintf(stderr, "Syntax error\n"); exit(1); 
+#line 1569 "./parse.c"
 /************ End %syntax_error code ******************************************/
   ParseARG_STORE /* Suppress warning about unused %extra_argument variable */
   ParseCTX_STORE
@@ -1413,9 +1591,9 @@ static void yy_accept(
   /* Here code is inserted which will be executed whenever the
   ** parser accepts */
 /*********** Begin %parse_accept code *****************************************/
-#line 343 "./parse.y"
+#line 392 "./parse.y"
  printf("Parse has completed successfully.\n"); 
-#line 1419 "./parse.c"
+#line 1597 "./parse.c"
 /*********** End %parse_accept code *******************************************/
   ParseARG_STORE /* Suppress warning about unused %extra_argument variable */
   ParseCTX_STORE
@@ -1624,7 +1802,7 @@ int ParseFallback(int iToken){
 #endif
   return 0;
 }
-#line 376 "./parse.y"
+#line 451 "./parse.y"
 
   void *pointerToMalloc(void){
     return malloc;
@@ -1635,11 +1813,18 @@ int ParseFallback(int iToken){
   }
 
   void freeNode(node *p) {
-    printf("free: %p", p);
-    if (p == NULL || (uintptr_t)p < 1000)
+    if (p == NULL)
       return;
-    freeNode(p->cons.car);
-    freeNode(p->cons.cdr);
+    if (p->type == CONS) {
+      freeNode(p->cons.car);
+      freeNode(p->cons.cdr);
+    } else {
+      if (p->atom.type != NULL) {
+        // printf("free atom: %p\n", p);
+        free(p->atom.type);
+      }
+    }
+    // printf("free cons: %p\n", p);
     free(p);
   }
 
@@ -1648,13 +1833,15 @@ int ParseFallback(int iToken){
   }
 
   void showNode(node *p) {
-    if (p == NULL)
+    if (p == NULL) {
+    //  printf("\n");
       return;
-    //printf("id:%p, value:%s\n", p, p->value);
-    printf("node:%p\n", p);
+    }
     if (p->type == ATOM) {
-      printf("  atom:%s\n", p->atom.type);
+      printf("atom:%p\n", p);
+      printf("  type:%s\n", p->atom.type);
     } else {
+      printf("cons:%p\n", p);
       if (p->cons.car != NULL)
         printf("  car:%p\n", p->cons.car);
       if (p->cons.cdr != NULL)
@@ -1667,4 +1854,4 @@ int ParseFallback(int iToken){
   void showAllNode(void) {
     showNode(root);
   }
-#line 1671 "./parse.c"
+#line 1858 "./parse.c"

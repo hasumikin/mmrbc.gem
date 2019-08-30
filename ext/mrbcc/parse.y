@@ -181,6 +181,7 @@ enum node_type {
   typedef struct mrb_parser_state {
     /* see mruby/include/mruby/compile.h */
     node *cells;
+    node *locals;
   } parser_state;
 
   parser_state *p;
@@ -285,14 +286,40 @@ list6_gen(parser_state *p, node *a, node *b, node *c, node *d, node *e, node *f)
 }
 #define list6(a,b,c,d,e,f) list6_gen(p, (a),(b),(c),(d),(e),(f))
 
+static node*
+append_gen(parser_state *p, node *a, node *b)
+{
+  node *c = a;
+  if (!a) return b;
+  while (c->cons.cdr) {
+    c = c->cons.cdr;
+  }
+  if (b) {
+    c->cons.cdr = b;
+  }
+  node *add = list1(list1(atom_node(":stmts_add")));
+  add->cons.car->cons.cdr = a;
+  return add;
+}
+#define append(a,b) append_gen(p,(a),(b))
+#define push(a,b) append_gen(p,(a),list1(b))
+
   #define nsym(x) ((node*)(intptr_t)(x))
   #define nint(x) ((node*)(intptr_t)(x))
 
-  node* reduce_program(node *p1) {
-    node *n;
-    n = list2(atom_node(":program"), p1);
-    root = n;
-    return n;
+  static node*
+  locals_node(parser_state *p)
+  {
+    //return p->locals->cons.car;
+    //return p->locals ? p->locals->cons.car : NULL;
+  }
+
+  /* (:scope (vars..) (prog...)) */
+  static node*
+  new_scope(parser_state *p, node *body)
+  {
+    return cons(atom_node(":stmts_add"), cons(locals_node(p), body));
+    //return cons(atom_node(":program"), body);
   }
 
   /* (:call a b c) */
@@ -305,22 +332,21 @@ list6_gen(parser_state *p, node *a, node *b, node *c, node *d, node *e, node *f)
     return n;
   }
 
-  /* (:scope (vars..) (prog...)) */
-  static node*
-  new_scope(parser_state *p, node *body)
-  {
-  //  return cons((node*)NODE_SCOPE, cons(locals_node(p), body));
-  }
-
   /* (:begin prog...) */
   static node*
   new_begin(parser_state *p, node *body)
   {
     if (body) {
-      return list2(atom_node("stmt_new"), body);
+      node *add, *new;
+      add = list1(atom_node(":stmts_add"));
+      new = list2(list1(atom_node(":stmts_new")), body);
+      add->cons.cdr = new;
+      return list1(add);
     }
-    return cons(atom_node("stmt_new"), 0);
+    return cons(atom_node(":stmts_new"), 0);
   }
+
+  #define newline_node(n) (n)
 
   static node*
   call_bin_op(node *recv, int m, node *arg1)
@@ -338,32 +364,80 @@ list6_gen(parser_state *p, node *a, node *b, node *c, node *d, node *e, node *f)
     node* result = list2(atom_node(":@int"), atom_node(s));
     return result;
   }
+
+  /* (:self) */
+  static node*
+  new_self(parser_state *p)
+  {
+    return list1(atom_node(":self"));
+  }
+
+  /* (:fcall self mid args) */
+  static node*
+  new_fcall(parser_state *p, node *b, node *c)
+  {
+    node *n = new_self(p);
+    n = list4(atom_node(":command"), n, b, c);
+    return n;
+  }
+
+  /* (:block_arg . a) */
+  static node*
+  new_block_arg(parser_state *p, node *a)
+  {
+    return cons((node*)NODE_BLOCK_ARG, a);
+  }
 }
 
 %parse_accept { printf("Parse has completed successfully.\n"); }
-%syntax_error { fprintf(stderr, "Syntax error\n"); }
-%parse_failure { fprintf(stderr, "Parse failure\n"); }
+%syntax_error { fprintf(stderr, "Syntax error\n"); exit(1); }
+%parse_failure { fprintf(stderr, "Parse failure\n"); exit(1); }
 
 %start_symbol program
 
 %left PLUS MINUS.
 %left DIVIDE TIMES.
 
-program(A) ::= top_compstmt(B).   { A = reduce_program(B); }
+program ::= top_compstmt(B).   {
+//  if (!p->locals) p->locals = cons(atom_node(":program"),0);
+  //if (!p->locals) {node *a = cons(atom_node(":program"),0);}
+  root = cons(atom_node(":program"), B); }
 top_compstmt(A) ::= top_stmts(B) opt_terms. { A = B; }
+top_stmts(A) ::= none. { A = new_begin(p, 0); }
 top_stmts(A) ::= top_stmt(B). { A = new_begin(p, B); }
+top_stmts(A) ::= top_stmts(B) terms top_stmt(C). { A = push(B, newline_node(C)); }
 top_stmt ::= stmt.
 //stmts(A) ::= stmt(B). { A = new_begin(B); }
 stmt ::= expr.
+expr ::= command_call.
 expr ::= arg.
+
+command_call ::= command.
+
+command(A) ::= operation(B) command_args(C). { A = new_fcall(p, B, C); }
+
+command_args ::= call_args.
+
+call_args(A) ::= args(B) opt_block_arg(C). { A = cons(B, C); }
+
+block_arg(A) ::= AMPER arg(B). { A = new_block_arg(p, B); }
+opt_block_arg(A) ::= COMMA block_arg(B). { A = B; }
+opt_block_arg(A) ::= none. { A = 0; }
+
+args(A) ::= arg(B). { A = cons(B, 0); }
+
 arg(A) ::= arg(B) PLUS arg(C).   { A = call_bin_op(B, PLUS ,C); }
 arg(A) ::= arg(B) MINUS arg(C).  { A = call_bin_op(B, MINUS, C); }
 arg(A) ::= arg(B) TIMES arg(C).  { A = call_bin_op(B, TIMES, C); }
 arg(A) ::= arg(B) DIVIDE arg(C). { A = call_bin_op(B, DIVIDE, C); }
-arg(A) ::= primary(B). { A = B; }
+arg ::= primary.
 primary ::= literal.
 literal ::= numeric.
 numeric(A) ::= INTEGER(B). { A = new_int(p, B, 10, 0); }
+
+operation(A) ::= IDENTIFIER(B). { A = list1(atom_node(B)); }
+operation ::= CONSTANT.
+operation ::= FID.
 
 opt_terms ::= .
 opt_terms ::= terms.
@@ -372,6 +446,7 @@ terms ::= terms term.
 
 term ::= NL.
 term ::= SEMICOLON.
+none(A) ::= . { A = 0; }
 
 %code {
   void *pointerToMalloc(void){
@@ -383,11 +458,18 @@ term ::= SEMICOLON.
   }
 
   void freeNode(node *p) {
-    printf("free: %p", p);
-    if (p == NULL || (uintptr_t)p < 1000)
+    if (p == NULL)
       return;
-    freeNode(p->cons.car);
-    freeNode(p->cons.cdr);
+    if (p->type == CONS) {
+      freeNode(p->cons.car);
+      freeNode(p->cons.cdr);
+    } else {
+      if (p->atom.type != NULL) {
+        // printf("free atom: %p\n", p);
+        free(p->atom.type);
+      }
+    }
+    // printf("free cons: %p\n", p);
     free(p);
   }
 
@@ -396,13 +478,15 @@ term ::= SEMICOLON.
   }
 
   void showNode(node *p) {
-    if (p == NULL)
+    if (p == NULL) {
+    //  printf("\n");
       return;
-    //printf("id:%p, value:%s\n", p, p->value);
-    printf("node:%p\n", p);
+    }
     if (p->type == ATOM) {
-      printf("  atom:%s\n", p->atom.type);
+      printf("atom:%p\n", p);
+      printf("  type:%s\n", p->atom.type);
     } else {
+      printf("cons:%p\n", p);
       if (p->cons.car != NULL)
         printf("  car:%p\n", p->cons.car);
       if (p->cons.cdr != NULL)

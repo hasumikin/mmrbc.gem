@@ -48,34 +48,22 @@ module Mrbcc
       return tokenizer.tokens
     end
 
-PLUS    = 1
-MINUS   = 2
-DIVIDE  = 3
-TIMES   = 4
-INTEGER = 5
     def parse(tokens)
+      File.open(File.expand_path("../../ext/mrbcc/parse.h", __FILE__), "r").each_line do |line|
+        if data = line.chomp.match(/\A#define\s+(\w+)\s+(\d+)\z/)
+          eval "#{data[1]} = #{data[2]}"
+        end
+      end
       pointer_to_malloc = Parser.pointerToMalloc
       pointer_to_free = Parser.pointerToFree
       parser = Parser.ParseAlloc(pointer_to_malloc)
       begin
-        Parser.Parse(parser, INTEGER, "1")
-        Parser.Parse(parser, PLUS, "0")
+        Parser.Parse(parser, IDENTIFIER, "puts")
         Parser.Parse(parser, INTEGER, "2")
-        Parser.Parse(parser, 0, "0")
-        Parser.showAllNode
-        puts
-        puts
-#        Parser.freeAllNode
-#        puts
-#        Parser.Parse(parser, INTEGER, "-2")
-#        Parser.Parse(parser, TIMES, "0")
-#        Parser.Parse(parser, INTEGER, "2")
-#        Parser.Parse(parser, PLUS, "0")
-#        Parser.Parse(parser, INTEGER, "3")
-#        Parser.Parse(parser, 0, "0")
-#        Parser.showAllNode
-#        Parser.freeAllNode
+        Parser.Parse(parser, 0, "")
       ensure
+        Parser.showAllNode
+        Parser.freeAllNode
         Parser.ParseFree(parser, pointer_to_free)
       end
     end

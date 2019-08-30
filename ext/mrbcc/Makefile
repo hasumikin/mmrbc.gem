@@ -5,7 +5,7 @@ PARSE = parse
 all: libparse.so
 
 libparse.so: $(PARSE).c
-	$(CC) -c -fPIC -o $(PARSE).o $(PARSE).c
+	$(CC) -c -fPIC $(OPT) -o $(PARSE).o $(PARSE).c
 	$(CC) -shared -o $(TARGET) $(PARSE).o
 
 $(PARSE).c: lemon
