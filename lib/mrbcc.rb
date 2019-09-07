@@ -59,7 +59,19 @@ module Mrbcc
       parser = Parser.ParseAlloc(pointer_to_malloc)
       begin
         Parser.Parse(parser, IDENTIFIER, "puts")
-        Parser.Parse(parser, INTEGER, "2")
+        Parser.Parse(parser, STRING_BEG, "")
+        Parser.Parse(parser, STRING_MID, "Hello World!")
+        Parser.Parse(parser, STRING, "")
+        #Parser.Parse(parser, PLUS, "")
+        #Parser.Parse(parser, INTEGER, "2")
+        #Parser.Parse(parser, NL, "")
+        #Parser.Parse(parser, INTEGER, "11")
+        #Parser.Parse(parser, PLUS, "")
+        #Parser.Parse(parser, INTEGER, "22")
+        #Parser.Parse(parser, NL, "")
+        #Parser.Parse(parser, INTEGER, "111")
+        #Parser.Parse(parser, PLUS, "")
+        #Parser.Parse(parser, INTEGER, "222")
         Parser.Parse(parser, 0, "")
       ensure
         Parser.showAllNode

@@ -216,8 +216,8 @@ enum node_type {
     //else {
     //  c = (node *)parser_palloc(p, sizeof(node));
     c = (node *)malloc(sizeof(node));
-    c->type = CONS;
     if (c == NULL) printf("Out Of Memory");
+    c->type = CONS;
     //}
     c->cons.car = car;
     c->cons.cdr = cdr;
@@ -232,7 +232,7 @@ enum node_type {
   #define cons(a,b) cons_gen(p,(a),(b))
 
   static node*
-  atom_node(const char *s)
+  atom(const char *s)
   {
     node* a;
     a = (node *)malloc(sizeof(node));
@@ -240,7 +240,7 @@ enum node_type {
     a->type = ATOM;
     a->atom.type = strdup(s);
     a->atom.index = 0;
-    return (node *)a;
+    return a;
   }
 
 
@@ -289,17 +289,16 @@ list6_gen(parser_state *p, node *a, node *b, node *c, node *d, node *e, node *f)
 static node*
 append_gen(parser_state *p, node *a, node *b)
 {
-  node *c = a;
-  if (!a) return b;
-  while (c->cons.cdr) {
-    c = c->cons.cdr;
-  }
-  if (b) {
-    c->cons.cdr = b;
-  }
-  node *add = list1(list1(atom_node(":stmts_add")));
-  add->cons.car->cons.cdr = a;
-  return add;
+//  node *c = a;
+//  if (!a) return b;
+//  while (c->cons.cdr) {
+//    c = c->cons.cdr;
+//  }
+//  if (b) {
+//    c->cons.cdr = b;
+//  }
+//  return a;
+  return list3(atom(":stmts_add"), a, b);
 }
 #define append(a,b) append_gen(p,(a),(b))
 #define push(a,b) append_gen(p,(a),list1(b))
@@ -318,17 +317,16 @@ append_gen(parser_state *p, node *a, node *b)
   static node*
   new_scope(parser_state *p, node *body)
   {
-    return cons(atom_node(":stmts_add"), cons(locals_node(p), body));
-    //return cons(atom_node(":program"), body);
+    return cons(atom(":stmts_add"), cons(locals_node(p), body));
   }
 
   /* (:call a b c) */
   static node*
   new_call(parser_state *p, node *a, int b, node *c, int pass)
   {
-    node *n = list4(atom_node(":binary"), a, atom_node(":+"), c);
     //void_expr_error(p, a);
     //NODE_LINENO(n, a);
+    node *n = list4(atom(":binary"), a, atom(":+"), c);
     return n;
   }
 
@@ -338,12 +336,13 @@ append_gen(parser_state *p, node *a, node *b)
   {
     if (body) {
       node *add, *new;
-      add = list1(atom_node(":stmts_add"));
-      new = list2(list1(atom_node(":stmts_new")), body);
-      add->cons.cdr = new;
-      return list1(add);
+      //add = list1(atom(":stmts_add"));
+      //new = list2(atom(":stmts_new"), body);
+      //add->cons.cdr = new;
+      add = list3(atom(":stmts_add"), list1(atom(":stmts_new")), body);
+      return add;
     }
-    return cons(atom_node(":stmts_new"), 0);
+    return cons(atom(":stmts_new"), 0);//TODO ここおかしい
   }
 
   #define newline_node(n) (n)
@@ -361,7 +360,7 @@ append_gen(parser_state *p, node *a, node *b)
   new_int(parser_state *p, const char *s, int base, int suffix)
   { // base は10進法などを表す
     //node* result = list3((node*)NODE_INT, (node*)strdup(s), nint(base));
-    node* result = list2(atom_node(":@int"), atom_node(s));
+    node* result = list2(atom(":@int"), atom(s));
     return result;
   }
 
@@ -369,15 +368,15 @@ append_gen(parser_state *p, node *a, node *b)
   static node*
   new_self(parser_state *p)
   {
-    return list1(atom_node(":self"));
+    return list1(atom(":self"));
   }
 
   /* (:fcall self mid args) */
   static node*
   new_fcall(parser_state *p, node *b, node *c)
   {
-    node *n = new_self(p);
-    n = list4(atom_node(":command"), n, b, c);
+    //node *n = new_self(p);
+    node *n = list3(atom(":command"), b, c);
     return n;
   }
 
@@ -387,6 +386,14 @@ append_gen(parser_state *p, node *a, node *b)
   {
     return cons((node*)NODE_BLOCK_ARG, a);
   }
+
+  /* (:dstr . a) */
+  static node*
+  new_dstr(parser_state *p, node *a)
+  {
+    return list2(atom(":string_literal"), a);
+    //return cons((node*)NODE_DSTR, a);
+  }
 }
 
 %parse_accept { printf("Parse has completed successfully.\n"); }
@@ -395,17 +402,21 @@ append_gen(parser_state *p, node *a, node *b)
 
 %start_symbol program
 
+%nonassoc LOWEST.
+%nonassoc LBRACE_ARG.
 %left PLUS MINUS.
 %left DIVIDE TIMES.
 
 program ::= top_compstmt(B).   {
-//  if (!p->locals) p->locals = cons(atom_node(":program"),0);
-  //if (!p->locals) {node *a = cons(atom_node(":program"),0);}
-  root = cons(atom_node(":program"), B); }
+//  if (!p->locals) p->locals = cons(atom(":program"),0);
+  //if (!p->locals) {node *a = cons(atom(":program"),0);}
+  root = list2(atom(":program"), B); }
 top_compstmt(A) ::= top_stmts(B) opt_terms. { A = B; }
 top_stmts(A) ::= none. { A = new_begin(p, 0); }
 top_stmts(A) ::= top_stmt(B). { A = new_begin(p, B); }
-top_stmts(A) ::= top_stmts(B) terms top_stmt(C). { A = push(B, newline_node(C)); }
+top_stmts(A) ::= top_stmts(B) terms top_stmt(C). {
+  A = append(B, newline_node(C)); // TODO mrubyのparse.yではpushになっている。。。
+  }
 top_stmt ::= stmt.
 //stmts(A) ::= stmt(B). { A = new_begin(B); }
 stmt ::= expr.
@@ -414,17 +425,17 @@ expr ::= arg.
 
 command_call ::= command.
 
-command(A) ::= operation(B) command_args(C). { A = new_fcall(p, B, C); }
+command(A) ::= operation(B) command_args(C). [LOWEST] { A = new_fcall(p, B, C); }
 
 command_args ::= call_args.
 
-call_args(A) ::= args(B) opt_block_arg(C). { A = cons(B, C); }
+call_args(A) ::= args(B) opt_block_arg(C). { A = list3(atom(":args_add_block"), B, C); }
 
 block_arg(A) ::= AMPER arg(B). { A = new_block_arg(p, B); }
 opt_block_arg(A) ::= COMMA block_arg(B). { A = B; }
 opt_block_arg(A) ::= none. { A = 0; }
 
-args(A) ::= arg(B). { A = cons(B, 0); }
+args(A) ::= arg(B). { A = list3(atom("args_add"), list1(atom("args_new")), B); }
 
 arg(A) ::= arg(B) PLUS arg(C).   { A = call_bin_op(B, PLUS ,C); }
 arg(A) ::= arg(B) MINUS arg(C).  { A = call_bin_op(B, MINUS, C); }
@@ -432,10 +443,20 @@ arg(A) ::= arg(B) TIMES arg(C).  { A = call_bin_op(B, TIMES, C); }
 arg(A) ::= arg(B) DIVIDE arg(C). { A = call_bin_op(B, DIVIDE, C); }
 arg ::= primary.
 primary ::= literal.
+primary ::= string.
 literal ::= numeric.
 numeric(A) ::= INTEGER(B). { A = new_int(p, B, 10, 0); }
 
-operation(A) ::= IDENTIFIER(B). { A = list1(atom_node(B)); }
+string ::= string_fragment.
+//string ::= string string_fragment. { A = concat_string(p, B, C); }
+string_fragment(A) ::= STRING_BEG string_rep(C) STRING. { A = new_dstr(p, list3(atom(":string_add"), list1(atom("string_content")), C)); }
+
+string_rep ::= string_interp.
+string_rep(A) ::= string_rep(B) string_interp(C). { A = append(B, C); }
+
+string_interp(A) ::= STRING_MID(B). { A = list2(atom(":@tstring_content"), atom(B)); }
+
+operation(A) ::= IDENTIFIER(B). { A = list2(atom(":@ident"), atom(B)); }
 operation ::= CONSTANT.
 operation ::= FID.
 
@@ -477,26 +498,49 @@ none(A) ::= . { A = 0; }
     freeNode(root);
   }
 
-  void showNode(node *p) {
-    if (p == NULL) {
-    //  printf("\n");
-      return;
+  void showNode1(node *p, int isCar, int indent, int isRightMost) {
+    if (p == NULL) return;
+    if (p->type == CONS) {
+      if (isCar) {
+        printf("\n");
+        for (int i=0; i<indent; i++) {
+          printf(" ");
+        }
+        printf("[");
+      } else {
+        printf(", ");
+      }
+      if (p->cons.car && p->cons.car->type == ATOM && p->cons.cdr == NULL) {
+        isRightMost = 1;
+      }
     }
     if (p->type == ATOM) {
-      printf("atom:%p\n", p);
-      printf("  type:%s\n", p->atom.type);
+      printf("%s", p->atom.type);
+      if (isRightMost) {
+        printf("]");
+      }
+    } else {
+      showNode1(p->cons.car, 1, indent+1, isRightMost);
+      showNode1(p->cons.cdr, 0, indent, isRightMost);
+    }
+  }
+
+  void showNode2(node *p) {
+    if (p == NULL) return;
+    if (p->type == ATOM) {
+      printf("    atom:%p", p);
+      printf("  value:%s\n", p->atom.type);
     } else {
       printf("cons:%p\n", p);
-      if (p->cons.car != NULL)
-        printf("  car:%p\n", p->cons.car);
-      if (p->cons.cdr != NULL)
-        printf("  cdr:%p\n", p->cons.cdr);
-      showNode(p->cons.car);
-      showNode(p->cons.cdr);
+      printf(" car:%p\n", p->cons.car);
+      printf(" cdr:%p\n", p->cons.cdr);
+      showNode2(p->cons.car);
+      showNode2(p->cons.cdr);
     }
   }
 
   void showAllNode(void) {
-    showNode(root);
+    showNode1(root, 1, 0, 0);
+    //showNode2(root);
   }
 }
