@@ -1,8 +1,9 @@
 CC = gcc
 TARGET = libparse.so
 PARSE = parse
+CRC = crc
 
-all: libparse.so
+all: libparse.so libcrc.so
 
 libparse.so: $(PARSE).c
 	$(CC) -c -fPIC $(OPT) -o $(PARSE).o $(PARSE).c
@@ -14,6 +15,10 @@ $(PARSE).c: lemon
 lemon:
 	cd ../../vendor/lemon ; $(MAKE) all
 
+libcrc.so: $(CRC).c
+	$(CC) -c -fPIC $(OPT) -o $(CRC).o $(CRC).c
+	$(CC) -shared -o lib$(CRC).so $(CRC).o
+
 clean:
 	cd ../../vendor/lemon ; $(MAKE) clean
-	rm -f $(PARSE).c $(TARGET) $(PARSE).h $(PARSE).out $(PARSE).o
+	rm -f $(PARSE).c $(TARGET) $(PARSE).h $(PARSE).out $(PARSE).o lib$(CRC).so $(CRC).o
