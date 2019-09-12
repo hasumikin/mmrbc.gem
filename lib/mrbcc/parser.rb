@@ -30,5 +30,13 @@ module Mrbcc
     #   ParseARG_PDECL               /* Optional %extra_argument parameter */
     # ){
     attach_function :Parse, [:pointer, :int, :string], :void
+
+    attach_function :pointerToRoot, [], :pointer
+    attach_function :isAtom, [:pointer], :bool
+    attach_function :hasCar, [:pointer], :bool
+    attach_function :hasCdr, [:pointer], :bool
+    attach_function :pointerToType, [:pointer], :pointer
+    attach_function :pointerToCar, [:pointer], :pointer
+    attach_function :pointerToCdr, [:pointer], :pointer
   end
 end

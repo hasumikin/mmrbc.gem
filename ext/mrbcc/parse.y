@@ -470,6 +470,16 @@ term ::= SEMICOLON.
 none(A) ::= . { A = 0; }
 
 %code {
+#ifndef Boolean         /* Boolean が定義されていなかったら */
+#define Boolean int
+#endif
+#ifndef TRUE            /* TRUE が定義されていなかったら */
+#define TRUE 1
+#endif
+#ifndef FALSE           /* FALSE が定義されていなかったら */
+#define FALSE 0
+#endif
+
   void *pointerToMalloc(void){
     return malloc;
   }
@@ -498,7 +508,7 @@ none(A) ::= . { A = 0; }
     freeNode(root);
   }
 
-  void showNode1(node *p, int isCar, int indent, int isRightMost) {
+  void showNode1(node *p, Boolean isCar, int indent, Boolean isRightMost) {
     if (p == NULL) return;
     if (p->type == CONS) {
       if (isCar) {
@@ -511,7 +521,7 @@ none(A) ::= . { A = 0; }
         printf(", ");
       }
       if (p->cons.car && p->cons.car->type == ATOM && p->cons.cdr == NULL) {
-        isRightMost = 1;
+        isRightMost = TRUE;
       }
     }
     if (p->type == ATOM) {
@@ -520,8 +530,8 @@ none(A) ::= . { A = 0; }
         printf("]");
       }
     } else {
-      showNode1(p->cons.car, 1, indent+1, isRightMost);
-      showNode1(p->cons.cdr, 0, indent, isRightMost);
+      showNode1(p->cons.car, TRUE, indent+1, isRightMost);
+      showNode1(p->cons.cdr, FALSE, indent, isRightMost);
     }
   }
 
@@ -540,7 +550,49 @@ none(A) ::= . { A = 0; }
   }
 
   void showAllNode(void) {
-    showNode1(root, 1, 0, 0);
+    showNode1(root, TRUE, 0, FALSE);
     //showNode2(root);
   }
+
+  void *pointerToRoot(void){
+    return root;
+  }
+
+  Boolean hasCar(node *p) {
+    if (p->type == ATOM)
+      return FALSE;
+    if (p->cons.car) {
+      return TRUE;
+    }
+    return FALSE;
+  }
+
+  Boolean hasCdr(node *p) {
+    if (p->type == ATOM)
+      return FALSE;
+    if (p->cons.cdr) {
+      return TRUE;
+    }
+    return FALSE;
+  }
+
+  Boolean isAtom(node *p){
+    if (p->type == ATOM) {
+      return TRUE;
+    }
+    return FALSE;
+  }
+
+  void *pointerToType(node *p) {
+    return p->atom.type;
+  }
+
+  void *pointerToCar(node *p){
+    return p->cons.car;
+  }
+
+  void *pointerToCdr(node *p){
+    return p->cons.cdr;
+  }
+
 }

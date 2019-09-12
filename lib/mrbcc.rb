@@ -4,6 +4,7 @@ require "mrbcc/version"
 require "thor"
 require "mrbcc/tokenizer"
 require "mrbcc/parser"
+require "mrbcc/parser/tree"
 require "mrbcc/generator"
 require "mrbcc/optimizer"
 require "tempfile"
@@ -73,8 +74,13 @@ module Mrbcc
         #Parser.Parse(parser, PLUS, "")
         #Parser.Parse(parser, INTEGER, "222")
         Parser.Parse(parser, 0, "")
+
+        root = Parser.pointerToRoot
+        tree = Parser::Tree.new(root)
+        tree.show_all_node
+        puts
       ensure
-        Parser.showAllNode
+        #Parser.showAllNode
         Parser.freeAllNode
         Parser.ParseFree(parser, pointer_to_free)
       end
