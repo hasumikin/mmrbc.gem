@@ -1,5 +1,5 @@
-require "mrbcc/token"
-require "mrbcc/token_array"
+require "mrbcc/tokenizer/token"
+require "mrbcc/tokenizer/token_array"
 
 module Mrbcc
   EXPR_NONE   = 0b0000000000000

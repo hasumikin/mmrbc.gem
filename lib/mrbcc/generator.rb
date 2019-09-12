@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "mrbcc/crc"
+require "mrbcc/generator/crc"
 
 module Mrbcc
   class Generator

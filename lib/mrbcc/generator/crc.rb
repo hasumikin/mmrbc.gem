@@ -5,7 +5,7 @@ require "ffi"
 module Mrbcc
   module CRC
     extend FFI::Library
-    ffi_lib File.expand_path("../../../ext/mrbcc/libcrc.so", __FILE__)
+    ffi_lib File.expand_path("../../../../ext/mrbcc/libcrc.so", __FILE__)
     attach_function :calc_crc_16_ccitt, [:pointer, :int, :int], :int
   end
 end
