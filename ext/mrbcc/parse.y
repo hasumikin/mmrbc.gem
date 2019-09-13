@@ -326,7 +326,15 @@ append_gen(parser_state *p, node *a, node *b)
   {
     //void_expr_error(p, a);
     //NODE_LINENO(n, a);
-    node *n = list4(atom(":binary"), a, atom(":+"), c);
+    node *n;
+    switch (b) {
+      case PLUS:
+        n = list4(atom(":binary"), a, atom(":+"), c);
+        break;
+      case TIMES:
+        n = list4(atom(":binary"), a, atom(":*"), c);
+        break;
+    }
     return n;
   }
 
@@ -435,7 +443,7 @@ block_arg(A) ::= AMPER arg(B). { A = new_block_arg(p, B); }
 opt_block_arg(A) ::= COMMA block_arg(B). { A = B; }
 opt_block_arg(A) ::= none. { A = 0; }
 
-args(A) ::= arg(B). { A = list3(atom("args_add"), list1(atom("args_new")), B); }
+args(A) ::= arg(B). { A = list3(atom(":args_add"), list1(atom(":args_new")), B); }
 
 arg(A) ::= arg(B) PLUS arg(C).   { A = call_bin_op(B, PLUS ,C); }
 arg(A) ::= arg(B) MINUS arg(C).  { A = call_bin_op(B, MINUS, C); }
@@ -449,7 +457,7 @@ numeric(A) ::= INTEGER(B). { A = new_int(p, B, 10, 0); }
 
 string ::= string_fragment.
 //string ::= string string_fragment. { A = concat_string(p, B, C); }
-string_fragment(A) ::= STRING_BEG string_rep(C) STRING. { A = new_dstr(p, list3(atom(":string_add"), list1(atom("string_content")), C)); }
+string_fragment(A) ::= STRING_BEG string_rep(C) STRING. { A = new_dstr(p, list3(atom(":string_add"), list1(atom(":string_content")), C)); }
 
 string_rep ::= string_interp.
 string_rep(A) ::= string_rep(B) string_interp(C). { A = append(B, C); }

@@ -63,10 +63,11 @@ module Mrbcc
         Parser.Parse(parser, STRING_BEG, "")
         Parser.Parse(parser, STRING_MID, "Hello World!")
         Parser.Parse(parser, STRING, "")
-        #Parser.Parse(parser, PLUS, "")
-        #Parser.Parse(parser, INTEGER, "2")
-        #Parser.Parse(parser, NL, "")
-        #Parser.Parse(parser, INTEGER, "11")
+ #       Parser.Parse(parser, INTEGER, "1")
+ #       Parser.Parse(parser, PLUS, "")
+ #       Parser.Parse(parser, INTEGER, "2")
+ #       Parser.Parse(parser, TIMES, "")
+ #       Parser.Parse(parser, INTEGER, "3")
         #Parser.Parse(parser, PLUS, "")
         #Parser.Parse(parser, INTEGER, "22")
         #Parser.Parse(parser, NL, "")
@@ -78,6 +79,8 @@ module Mrbcc
         root = Parser.pointerToRoot
         tree = Parser::Tree.new(root)
         tree.show_all_node
+        puts
+        tree.traverse
         puts
       ensure
         #Parser.showAllNode

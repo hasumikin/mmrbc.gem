@@ -29,7 +29,26 @@ module Mrbcc
         show_node(@root, true, 0, false)
       end
 
+      def traverse
+        postorder(@root, [], 0)
+      end
+
       private
+
+      def postorder(node, cdrs, depth)
+        return if node.nil?
+        postorder(node.car, [], 0) unless node.car&.isAtom
+        cdrs << node.car.type if node.car&.isAtom
+        postorder(node.cdr, cdrs, depth + 1)
+        puts cdrs.join(", ") if node.car&.isAtom && depth == 0
+      end
+
+      # def postorder(node, cdr_depth)
+      #   return if node.nil?
+      #   postorder(node.car, 0) unless node.car&.isAtom
+      #   postorder(node.cdr, cdr_depth + 1)
+      #   puts node.car.type + "(#{cdr_depth})" if node.car&.isAtom
+      # end
 
       def show_node(node, isCar, indent, isRightMost)
         return unless node
@@ -46,7 +65,11 @@ module Mrbcc
           end
         end
         if node.isAtom
-          print node.type
+          if node.type[0] == ":"
+            print node.type
+          else
+            print '"' + node.type + '"'
+          end
           if isRightMost
             print "]"
           end
