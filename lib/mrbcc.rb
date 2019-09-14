@@ -78,10 +78,10 @@ module Mrbcc
 
         root = Parser.pointerToRoot
         tree = Parser::Tree.new(root)
-        tree.show_all_node
-        puts
-        tree.traverse
-        puts
+
+        generator = Generator.new
+        generator.prepare(tree.root)
+        generator.generate
       ensure
         #Parser.showAllNode
         Parser.freeAllNode

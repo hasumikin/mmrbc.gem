@@ -1,24 +1,38 @@
 # frozen_string_literal: true
 
 require "mrbcc/generator/crc"
+require "mrbcc/generator/pool"
 
 module Mrbcc
   class Generator
     HEADER_SIZE = 22
     IREP_HEADER_SIZE = 26
 
+    # state
+    NONE = 0
+    WAIT_SEND = 1
+
     def initialize
+      @pool = Pool.new
+      @pool.reset_stmts_index
+      @operation_stack = Array.new
       @code = Array.new
-      @symbol_table = Array.new
-      @literal_pool = Array.new
-      @symbol_table << "puts"
-      @literal_pool << { lit: "Hello World!", type: 0 }
     end
 
-    def save(filename)
+    def prepare(tree_root)
+      traverse(tree_root, [], 0)
+      pp @pool
+      pp @operation_stack
+    end
+
+    def generate
       push_irep
       push_footer
       unshift_header
+      save "../test/mruby/out"
+    end
+
+    def save(filename)
       File.open(filename, "w") do |f|
         f.write @code.flatten.pack("C*")
       end
@@ -26,17 +40,75 @@ module Mrbcc
 
   private
 
+    # postorder
+    @wait_send = nil
+    def traverse(node, cdrs, depth)
+      return if node.nil?
+      traverse(node.car, [], 0) unless node.car&.isAtom
+      cdrs << node.car.type if node.car&.isAtom
+      traverse(node.cdr, cdrs, depth + 1)
+      if node.car&.isAtom && depth == 0
+        @operation_stack << cdrs
+        define_table(cdrs)
+      end
+    end
+
+    def define_table(cdrs)
+      if cdrs.size == 2
+        case cdrs[0]
+        when ":@tstring_content"
+          @pool.define(cdrs[1], :literal, Pool::STRING)
+        when ":@ident"
+          @pool.define(cdrs[1], :symbol, nil)
+        end
+      elsif cdrs == [":stmts_new"]
+        @pool.stmts_new
+      end
+    end
+
+    def stmts_new
+      @pool.stmts_new
+      @nlocals = 1 # starts from 1, I don't know why
+      @state = NONE
+      @reg = 1
+      @wait_send = nil
+      @nargs = 0
+    end
+
     def push_irep
       irep = Array.new
+      @operation_stack.each do |op|
+        case op.size
+        when 1
+          case op[0]
+          when ":stmts_new"
+            stmts_new
+          when ":command"
+            irep.push OP_SEND, @reg, @pool.index_of(@wait_send, :symbol), @nargs
+            @wait_send = nil
+            @nargs = 0
+          end
+        when 2
+          case op[0]
+          when ":@ident"
+            if @state == NONE
+              @state = WAIT_SEND
+              @wait_send = op[1]
+            end
+          end
+        end
+      end
+      hello = "Hello World!"
+      sym = "puts"
       op = 0x10, 0x01, 0x4f, 0x02, 0x00, 0x2e, 0x01, 0x00, 0x01, 0x37, 0x01, 0x67
       irep.push op
-      irep.push sprintf("%8x", @literal_pool.size).scan(/../).map{|s| s.to_i(16)}
-      irep.push @literal_pool[0][:type]
-      irep.push sprintf("%4x", @literal_pool[0][:lit].size).scan(/../).map{|s| s.to_i(16)}
-      irep.push @literal_pool[0][:lit].bytes
-      irep.push sprintf("%8x", @symbol_table.size).scan(/../).map{|s| s.to_i(16)}
-      irep.push sprintf("%4x", @symbol_table[0].size).scan(/../).map{|s| s.to_i(16)}
-      irep.push @symbol_table[0].bytes
+      irep.push sprintf("%8x", @pool.count(:literal)).scan(/../).map{|s| s.to_i(16)}
+      irep.push @pool.index_of(hello, :literal, Pool::STRING)
+      irep.push sprintf("%4x", hello.size).scan(/../).map{|s| s.to_i(16)}
+      irep.push hello.bytes
+      irep.push sprintf("%8x", @pool.count(:symbol)).scan(/../).map{|s| s.to_i(16)}
+      irep.push sprintf("%4x", sym.size).scan(/../).map{|s| s.to_i(16)}
+      irep.push sym.bytes
       irep.push 0 # ?
       irep.unshift irep_header(irep.flatten.size, op.size)
       @code.push irep
