@@ -1,6 +1,13 @@
 require "bundler/gem_tasks"
 require "rake/testtask"
 
+desc "make lemon.c and lempar.c"
+task :make_lemon do
+  Dir.chdir("vendor/lemon") do
+    system "make"
+  end
+end
+
 desc "make sheared libraries"
 task :make do
   Dir.chdir("ext/mrbcc") do
@@ -23,6 +30,6 @@ Rake::TestTask.new(:run_test) do |t|
   t.verbose = true
 end
 
-task test: [:make, :run_test]
+task test: [:make_lemon, :make, :run_test]
 
 task default: :test
