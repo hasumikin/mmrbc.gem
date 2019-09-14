@@ -160,7 +160,7 @@ module Mrbcc
             @mode = nil
             break
           elsif [" ", "\n"].include?(@@line[@@pos])
-            token = @@line[@@pos..].match(/\A([\s\n]+)/)[1]
+            token = @@line[@@pos..].match(/\A([\s]+)/)[1]
             type = :on_words_sep
           else
             i = 0
