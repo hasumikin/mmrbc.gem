@@ -2,6 +2,7 @@
 
 require "mrbcc/version"
 require "thor"
+require "mrbcc/header"
 require "mrbcc/tokenizer"
 require "mrbcc/parser"
 require "mrbcc/parser/tree"
@@ -13,21 +14,25 @@ module Mrbcc
   class Error < StandardError; end
 
   class Main < Thor
-    def self.start(given_args = ARGV, config = {})
-      args = ["compile"] + given_args
+    def self.start(args = ARGV, config = {})
+      unless %w(version help).include?(args[0])
+        args.unshift "compile"
+      end
       super(args, config)
     end
 
     default_command :compile
 
+    option :debug, alias: :d, type: :boolean
     desc "compile", "Compile a Ruby script into mruby intermediate byte code"
     def compile(rb_path)
       unless File.exist?(rb_path)
         puts "mrbcc: No program file given"
         exit false
       end
-      tokens = tokenize(rb_path)
-      parse(tokens)
+      tokens = tokenize(rb_path, options[:debug])
+      tree = parse(tokens, options[:debug])
+      generate(tree, options[:debug])
     end
 
     desc "version", "Print the version"
@@ -37,7 +42,7 @@ module Mrbcc
 
   private
 
-    def tokenize(path)
+    def tokenize(path, debug = false)
       Tokenizer.init_classvars
       file = File.open(path, "r")
       tokenizer = Tokenizer.new(file)
@@ -46,54 +51,41 @@ module Mrbcc
       end
     ensure
       file.close
+      if debug
+        pp tokenizer.tokens
+        puts
+      end
       return tokenizer.tokens
     end
 
-    def parse(tokens)
-      File.open(File.expand_path("../../ext/mrbcc/parse.h", __FILE__), "r").each_line do |line|
-        if data = line.chomp.match(/\A#define\s+(\w+)\s+(\d+)\z/)
-          eval "#{data[1]} = #{data[2]}"
-        end
-      end
+    def parse(tokens, debug)
       pointer_to_malloc = Parser.pointerToMalloc
       pointer_to_free = Parser.pointerToFree
       parser = Parser.ParseAlloc(pointer_to_malloc)
       begin
-        Parser.Parse(parser, IDENTIFIER, "puts")
-        Parser.Parse(parser, STRING_BEG, "")
-        Parser.Parse(parser, STRING_MID, "Hello World!")
-        Parser.Parse(parser, STRING, "")
- #       Parser.Parse(parser, INTEGER, "1")
- #       Parser.Parse(parser, PLUS, "")
- #       Parser.Parse(parser, INTEGER, "2")
- #       Parser.Parse(parser, TIMES, "")
- #       Parser.Parse(parser, INTEGER, "3")
-        #Parser.Parse(parser, PLUS, "")
-        #Parser.Parse(parser, INTEGER, "22")
-        #Parser.Parse(parser, NL, "")
-        #Parser.Parse(parser, INTEGER, "111")
-        #Parser.Parse(parser, PLUS, "")
-        #Parser.Parse(parser, INTEGER, "222")
+        tokens.each do |token|
+          type = TOKEN_TYPE[token.type]
+          next if type == nil
+          if type == :on_op
+            type = OPERATORS[token.value]
+          end
+          Parser.Parse(parser, type, token.value)
+        end
         Parser.Parse(parser, 0, "")
-
+        Parser.showAllNode if debug
         root = Parser.pointerToRoot
-        tree = Parser::Tree.new(root)
-
-        generator = Generator.new
-        generator.prepare(tree.root)
-        generator.generate
+        return Parser::Tree.new(root)
       ensure
-        #Parser.showAllNode
         Parser.freeAllNode
         Parser.ParseFree(parser, pointer_to_free)
       end
     end
 
-    def generate
+    def generate(tree, debug)
+      generator = Generator.new
+      generator.generate(tree.root)
     end
 
-    def optimize
-    end
   end
 
 end

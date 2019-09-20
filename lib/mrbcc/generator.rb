@@ -1,149 +1,124 @@
 # frozen_string_literal: true
 
 require "mrbcc/generator/crc"
-require "mrbcc/generator/pool"
+require "mrbcc/generator/scope"
+require "mrbcc/generator/opcode"
+require "mrbcc/generator/integer_bytes"
 
 module Mrbcc
   class Generator
+    using IntegerBytes
+
     HEADER_SIZE = 22
-    IREP_HEADER_SIZE = 26
 
-    # state
-    NONE = 0
-    WAIT_SEND = 1
-
-    def initialize
-      @pool = Pool.new
-      @pool.reset_stmts_index
-      @operation_stack = Array.new
-      @code = Array.new
+    def generate(root)
+      scope = new_scope(nil)
+      codegen(scope, root)
+      scope.code.push footer
+      code_size = scope.code.flatten.size
+      scope.code.unshift "0000".bytes # compiler version
+      scope.code.unshift "MATZ".bytes # compiler name
+      scope.code.unshift (code_size + HEADER_SIZE).bytes(4) # total size of the binary
+      scope.code.unshift crc(scope.code).bytes(2) # CRC
+      scope.code.unshift header(scope.code.flatten.size)
+      save(scope, "../test/mruby/out")
     end
 
-    def prepare(tree_root)
-      traverse(tree_root, [], 0)
-      pp @pool
-      pp @operation_stack
-    end
-
-    def generate
-      push_irep
-      push_footer
-      unshift_header
-      save "../test/mruby/out"
-    end
-
-    def save(filename)
+    def save(scope, filename)
       File.open(filename, "w") do |f|
-        f.write @code.flatten.pack("C*")
+        f.write scope.code.flatten.pack("C*")
       end
     end
 
   private
 
-    # postorder
-    @wait_send = nil
-    def traverse(node, cdrs, depth)
-      return if node.nil?
-      traverse(node.car, [], 0) unless node.car&.isAtom
-      cdrs << node.car.type if node.car&.isAtom
-      traverse(node.cdr, cdrs, depth + 1)
-      if node.car&.isAtom && depth == 0
-        @operation_stack << cdrs
-        define_table(cdrs)
-      end
+    def new_scope(prev)
+      scope = Scope.new(prev)
+      prev.nirep += 1 if prev
+      return scope
     end
 
-    def define_table(cdrs)
-      if cdrs.size == 2
-        case cdrs[0]
-        when ":@tstring_content"
-          @pool.define(cdrs[1], :literal, Pool::STRING)
-        when ":@ident"
-          @pool.define(cdrs[1], :symbol, nil)
+    def gen_self(scope)
+      scope.code.push OP_LOADSELF, scope.sp
+      scope.push
+    end
+
+    def gen_call(scope, tree)
+      nargs = gen_values(scope, tree.cdr.cdr.car) # args_add_block
+      nargs.times { scope.pop }
+      scope.code.push OP_SEND, scope.sp - nargs, scope.new_sym(tree.cdr.car.cdr.atom), nargs
+      scope.pop
+    end
+
+    def gen_values(scope, tree)
+      nargs = 0
+      node = tree
+      while (node) do
+        if node&.cdr&.car&.atom == ":args_add"
+          nargs += 1
         end
-      elsif cdrs == [":stmts_new"]
-        @pool.stmts_new
+        node = node.cdr&.car
+      end
+      codegen(scope, tree.cdr.car)
+      return nargs
+    end
+
+    def gen_str(scope, node)
+      scope.code.push OP_STRING, scope.sp, scope.new_lit(node.atom)
+      scope.push
+    end
+
+    def codegen(scope, tree)
+      return if tree.nil? || tree.isAtom
+      case tree.atom
+      when nil
+        codegen(scope, tree.car)
+        codegen(scope, tree.cdr)
+      when ":program"
+        codegen(scope, tree.cdr.car)
+        scope.code.push OP_RETURN, scope.sp
+        scope.code.push OP_STOP
+        scope.finish
+      when ":stmts_add"
+        codegen(scope, tree.car)
+        codegen(scope, tree.cdr)
+      when ":stmts_new" # NEW_BEGIN
+        return
+      when ":command"
+        gen_self(scope)
+        gen_call(scope, tree)
+      when ":args_add"
+        codegen(scope, tree.car)
+        codegen(scope, tree.cdr)
+      when ":args_new"
+        return
+      when ":string_literal"
+        codegen(scope, tree.cdr.car.cdr) # skip the first :string_add
+      when ":string_add"
+        scope.pop
+        scope.pop
+        gen_2 OP_STRCAT, scope.sp
+        scope.push
+      when ":string_content"
+        return
+      when ":@tstring_content"
+        gen_str(scope, tree.cdr)
       end
     end
 
-    def stmts_new
-      @pool.stmts_new
-      @nlocals = 1 # starts from 1, I don't know why
-      @state = NONE
-      @reg = 1
-      @wait_send = nil
-      @nargs = 0
+    def footer
+       "END\0".bytes + # section name
+       [0x00, 0x00, 0x00, 0x08] # section size
     end
 
-    def push_irep
-      irep = Array.new
-      @operation_stack.each do |op|
-        case op.size
-        when 1
-          case op[0]
-          when ":stmts_new"
-            stmts_new
-          when ":command"
-            irep.push OP_SEND, @reg, @pool.index_of(@wait_send, :symbol), @nargs
-            @wait_send = nil
-            @nargs = 0
-          end
-        when 2
-          case op[0]
-          when ":@ident"
-            if @state == NONE
-              @state = WAIT_SEND
-              @wait_send = op[1]
-            end
-          end
-        end
-      end
-      hello = "Hello World!"
-      sym = "puts"
-      op = 0x10, 0x01, 0x4f, 0x02, 0x00, 0x2e, 0x01, 0x00, 0x01, 0x37, 0x01, 0x67
-      irep.push op
-      irep.push sprintf("%8x", @pool.count(:literal)).scan(/../).map{|s| s.to_i(16)}
-      irep.push @pool.index_of(hello, :literal, Pool::STRING)
-      irep.push sprintf("%4x", hello.size).scan(/../).map{|s| s.to_i(16)}
-      irep.push hello.bytes
-      irep.push sprintf("%8x", @pool.count(:symbol)).scan(/../).map{|s| s.to_i(16)}
-      irep.push sprintf("%4x", sym.size).scan(/../).map{|s| s.to_i(16)}
-      irep.push sym.bytes
-      irep.push 0 # ?
-      irep.unshift irep_header(irep.flatten.size, op.size)
-      @code.push irep
+    def header(code_size)
+      "RITE".bytes + # binary ID
+      "0006".bytes # binary format version
+
     end
 
-    def irep_header(size, op_size)
-      h = Array.new
-      h.push "IREP".bytes # section ID
-      h.push sprintf("%8x", size + IREP_HEADER_SIZE).scan(/../).map{|s| s.to_i(16)} # size of the section
-      h.push "0002".bytes # instruction version
-      h.push 0,0,0,0 # record length
-      h.push 0,1     # num LCL
-      h.push 0,4     # num REG
-      h.push 0,0     # num CHILDREN
-      h.push sprintf("%8x", op_size).scan(/../).map{|s| s.to_i(16)}
-      return h
-    end
-
-    def push_footer
-      @code.push "END\0".bytes # section name
-      @code.push 0x00, 0x00, 0x00, 0x08 # section size
-    end
-
-    def unshift_header
-      code_size = @code.flatten.size
-      @code.unshift "0000".bytes # compiler version
-      @code.unshift "MATZ".bytes # compiler name
-      @code.unshift sprintf("%8x", code_size + HEADER_SIZE).scan(/../).map{|s| s.to_i(16)} # total size of the binary
-      @code.unshift sprintf("%4x", crc).scan(/../).map{|s| s.to_i(16)} # CRC
-      @code.unshift "0006".bytes # binary format version
-      @code.unshift "RITE".bytes # binary ID
-    end
-
-    def crc
-      data = @code.flatten.pack("C*")
+    def crc(code)
+      data = code.flatten.pack("C*")
       memBuf = FFI::MemoryPointer.new(:char, data.bytesize)
       memBuf.put_bytes(0, data)
       return Mrbcc::CRC.calc_crc_16_ccitt(memBuf, data.size, 0)

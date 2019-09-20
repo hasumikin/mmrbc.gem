@@ -559,6 +559,7 @@ none(A) ::= . { A = 0; }
 
   void showAllNode(void) {
     showNode1(root, TRUE, 0, FALSE);
+    printf("\n\n");
     //showNode2(root);
   }
 
