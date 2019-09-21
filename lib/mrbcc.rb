@@ -7,7 +7,6 @@ require "mrbcc/tokenizer"
 require "mrbcc/parser"
 require "mrbcc/parser/tree"
 require "mrbcc/generator"
-require "mrbcc/optimizer"
 require "tempfile"
 
 module Mrbcc
