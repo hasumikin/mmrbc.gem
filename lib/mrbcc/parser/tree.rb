@@ -17,11 +17,19 @@ module Mrbcc
         node = Node.new
         node.car = Parser.hasCar(pointer) ? make_node(Parser.pointerToCar(pointer)) : nil
         node.cdr = Parser.hasCdr(pointer) ? make_node(Parser.pointerToCdr(pointer)) : nil
-        node.isAtom = Parser.isAtom(pointer)
-        if node.isAtom
-          ptr = Parser.pointerToType(pointer)
+        node.kind = case Parser.kind(pointer)
+        when 'a'
+          :atom
+        when 'l'
+          :literal
+        when 'c'
+          :cons
+        end
+        node.atom_type = Parser.atom_type(pointer)
+        if node.literal?
+          ptr = Parser.pointerToLiteral(pointer)
           if ptr.address > 0
-            node.type = ptr.read_string
+            node.literal = ptr.read_string
           end
         end
         return node
@@ -35,7 +43,7 @@ module Mrbcc
 
       def show_node(node, isCar, indent, isRightMost)
         return unless node
-        unless node.isAtom
+        if node.cons?
           if isCar
             print "\n"
             print " " * indent
@@ -43,20 +51,21 @@ module Mrbcc
           else
             print ", "
           end
-          if node.car && node.car.isAtom && node.cdr == nil
+          if node.car && !node.car.cons? && node.cdr == nil
             isRightMost = true
           end
-        end
-        if node.isAtom
-          if node.type[0] == ":"
-            print node.type
-          else
-            print '"' + node.type + '"'
-          end
+        elsif node.atom?
+          print ATOM_TYPE[node.atom_type].to_s.sub("ATOM_", ":").sub(/\A:at_/, ":@")
           if isRightMost
             print "]"
           end
-        else
+        elsif node.literal?
+          print '"' + node.literal + '"'
+          if isRightMost
+            print "]"
+          end
+        end
+        if node.cons?
           show_node(node.car, true, indent+1, isRightMost)
           show_node(node.cdr, false, indent, isRightMost)
         end

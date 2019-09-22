@@ -32,10 +32,11 @@ module Mrbcc
     attach_function :Parse, [:pointer, :int, :string], :void
 
     attach_function :pointerToRoot, [], :pointer
-    attach_function :isAtom, [:pointer], :bool
+    attach_function :kind, [:pointer], :string
+    attach_function :atom_type, [:pointer], :int
     attach_function :hasCar, [:pointer], :bool
     attach_function :hasCdr, [:pointer], :bool
-    attach_function :pointerToType, [:pointer], :pointer
+    attach_function :pointerToLiteral, [:pointer], :pointer
     attach_function :pointerToCar, [:pointer], :pointer
     attach_function :pointerToCdr, [:pointer], :pointer
   end

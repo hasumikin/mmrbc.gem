@@ -31,6 +31,7 @@ module Mrbcc
       end
       tokens = tokenize(rb_path, options[:debug])
       tree = parse(tokens, options[:debug])
+      tree.show_all_node if options[:debug]
       generate(tree, options[:debug])
     end
 

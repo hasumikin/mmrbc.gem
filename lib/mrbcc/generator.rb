@@ -46,7 +46,7 @@ module Mrbcc
     def gen_call(scope, tree)
       nargs = gen_values(scope, tree.cdr.cdr.car) # args_add_block
       nargs.times { scope.pop }
-      scope.code.push OP_SEND, scope.sp - nargs, scope.new_sym(tree.cdr.car.cdr.atom), nargs
+      scope.code.push OP_SEND, scope.sp - nargs, scope.new_sym(tree.cdr.car.cdr.literal_name), nargs
       scope.pop
     end
 
@@ -54,7 +54,7 @@ module Mrbcc
       nargs = 0
       node = tree
       while (node) do
-        if node&.cdr&.car&.atom == ":args_add"
+        if node&.cdr&.car&.atom_name == :ATOM_args_add
           nargs += 1
         end
         node = node.cdr&.car
@@ -64,44 +64,44 @@ module Mrbcc
     end
 
     def gen_str(scope, node)
-      scope.code.push OP_STRING, scope.sp, scope.new_lit(node.atom)
+      scope.code.push OP_STRING, scope.sp, scope.new_lit(node.literal_name)
       scope.push
     end
 
     def codegen(scope, tree)
-      return if tree.nil? || tree.isAtom
-      case tree.atom
+      return if tree.nil? || tree.atom?
+      case tree.atom_name
       when nil
         codegen(scope, tree.car)
         codegen(scope, tree.cdr)
-      when ":program"
+      when :ATOM_program
         codegen(scope, tree.cdr.car)
         scope.code.push OP_RETURN, scope.sp
         scope.code.push OP_STOP
         scope.finish
-      when ":stmts_add"
+      when :ATOM_stmts_add
         codegen(scope, tree.car)
         codegen(scope, tree.cdr)
-      when ":stmts_new" # NEW_BEGIN
+      when :ATOM_stmts_new # NEW_BEGIN
         return
-      when ":command"
+      when :ATOM_command
         gen_self(scope)
         gen_call(scope, tree)
-      when ":args_add"
+      when :ATOM_args_add
         codegen(scope, tree.car)
         codegen(scope, tree.cdr)
-      when ":args_new"
+      when :ATOM_args_new
         return
-      when ":string_literal"
+      when :ATOM_string_literal
         codegen(scope, tree.cdr.car.cdr) # skip the first :string_add
-      when ":string_add"
+      when :ATOM_string_add
         scope.pop
         scope.pop
         gen_2 OP_STRCAT, scope.sp
         scope.push
-      when ":string_content"
+      when :ATOM_string_content
         return
-      when ":@tstring_content"
+      when :ATOM_at_tstring_content
         gen_str(scope, tree.cdr)
       end
     end

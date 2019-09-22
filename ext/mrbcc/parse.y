@@ -5,103 +5,13 @@
   #include <stdlib.h>
   #include <stdint.h>
   #include <string.h>
+  #include "atom_type.h"
   #include "parse.h"
-
-enum node_type {
-  NODE_METHOD,
-  NODE_SCOPE,
-  NODE_BLOCK,
-  NODE_IF,
-  NODE_CASE,
-  NODE_WHEN,
-  NODE_WHILE,
-  NODE_UNTIL,
-  NODE_ITER,
-  NODE_FOR,
-  NODE_BREAK,
-  NODE_NEXT,
-  NODE_REDO,
-  NODE_RETRY,
-  NODE_BEGIN,
-  NODE_RESCUE,
-  NODE_ENSURE,
-  NODE_AND,
-  NODE_OR,
-  NODE_NOT,
-  NODE_MASGN,
-  NODE_ASGN,
-  NODE_CDECL,
-  NODE_CVASGN,
-  NODE_CVDECL,
-  NODE_OP_ASGN,
-  NODE_CALL,
-  NODE_SCALL,
-  NODE_FCALL,
-  NODE_SUPER,
-  NODE_ZSUPER,
-  NODE_ARRAY,
-  NODE_ZARRAY,
-  NODE_HASH,
-  NODE_KW_HASH,
-  NODE_RETURN,
-  NODE_YIELD,
-  NODE_LVAR,
-  NODE_DVAR,
-  NODE_GVAR,
-  NODE_IVAR,
-  NODE_CONST,
-  NODE_CVAR,
-  NODE_NTH_REF,
-  NODE_BACK_REF,
-  NODE_MATCH,
-  NODE_INT,
-  NODE_FLOAT,
-  NODE_NEGATE,
-  NODE_LAMBDA,
-  NODE_SYM,
-  NODE_STR,
-  NODE_DSTR,
-  NODE_XSTR,
-  NODE_DXSTR,
-  NODE_REGX,
-  NODE_DREGX,
-  NODE_DREGX_ONCE,
-  NODE_ARG,
-  NODE_ARGS_TAIL,
-  NODE_KW_ARG,
-  NODE_KW_REST_ARGS,
-  NODE_SPLAT,
-  NODE_TO_ARY,
-  NODE_SVALUE,
-  NODE_BLOCK_ARG,
-  NODE_DEF,
-  NODE_SDEF,
-  NODE_ALIAS,
-  NODE_UNDEF,
-  NODE_CLASS,
-  NODE_MODULE,
-  NODE_SCLASS,
-  NODE_COLON2,
-  NODE_COLON3,
-  NODE_DOT2,
-  NODE_DOT3,
-  NODE_SELF,
-  NODE_NIL,
-  NODE_TRUE,
-  NODE_FALSE,
-  NODE_DEFINED,
-  NODE_POSTEXE,
-  NODE_DSYM,
-  NODE_HEREDOC,
-  NODE_LITERAL_DELIM,
-  NODE_WORDS,
-  NODE_SYMBOLS,
-  NODE_LAST
-};
 
   typedef enum {
     ATOM,
-    CONS
+    CONS,
+    LITERAL
   } NodeType;
 
   typedef struct node node;
@@ -112,15 +22,19 @@ enum node_type {
   } Cons;
 
   typedef struct {
-    char *type;
-    int index;
+    int type;
   } Atom;
+
+  typedef struct {
+    char *name;
+  } Literal;
 
   struct node {
     NodeType type;
     union {
       Atom atom;
       Cons cons;
+      Literal literal;
     };
   };
 
@@ -232,17 +146,26 @@ enum node_type {
   #define cons(a,b) cons_gen(p,(a),(b))
 
   static node*
-  atom(const char *s)
+  atom(int t)
   {
     node* a;
     a = (node *)malloc(sizeof(node));
     if (a == NULL) printf("Out Of Memory");
     a->type = ATOM;
-    a->atom.type = strdup(s);
-    a->atom.index = 0;
+    a->atom.type = t;
     return a;
   }
 
+  static node*
+  literal(const char *s)
+  {
+    node* l;
+    l = (node *)malloc(sizeof(node));
+    if (l == NULL) printf("Out Of Memory");
+    l->type = LITERAL;
+    l->literal.name = strdup(s);
+    return l;
+  }
 
   static node*
   list1_gen(parser_state *p, node *a)
@@ -298,7 +221,7 @@ append_gen(parser_state *p, node *a, node *b)
 //    c->cons.cdr = b;
 //  }
 //  return a;
-  return list3(atom(":stmts_add"), a, b);
+  return list3(atom(ATOM_stmts_add), a, b);
 }
 #define append(a,b) append_gen(p,(a),(b))
 #define push(a,b) append_gen(p,(a),list1(b))
@@ -317,7 +240,7 @@ append_gen(parser_state *p, node *a, node *b)
   static node*
   new_scope(parser_state *p, node *body)
   {
-    return cons(atom(":stmts_add"), cons(locals_node(p), body));
+    return cons(atom(ATOM_stmts_add), cons(locals_node(p), body));
   }
 
   /* (:call a b c) */
@@ -329,10 +252,10 @@ append_gen(parser_state *p, node *a, node *b)
     node *n;
     switch (b) {
       case PLUS:
-        n = list4(atom(":binary"), a, atom(":+"), c);
+        n = list4(atom(ATOM_binary), a, literal(":+"), c);
         break;
       case TIMES:
-        n = list4(atom(":binary"), a, atom(":*"), c);
+        n = list4(atom(ATOM_binary), a, literal(":*"), c);
         break;
     }
     return n;
@@ -347,10 +270,10 @@ append_gen(parser_state *p, node *a, node *b)
       //add = list1(atom(":stmts_add"));
       //new = list2(atom(":stmts_new"), body);
       //add->cons.cdr = new;
-      add = list3(atom(":stmts_add"), list1(atom(":stmts_new")), body);
+      add = list3(atom(ATOM_stmts_add), list1(atom(ATOM_stmts_new)), body);
       return add;
     }
-    return cons(atom(":stmts_new"), 0);//TODO ここおかしい
+    return cons(atom(ATOM_stmts_new), 0);//TODO ここおかしい
   }
 
   #define newline_node(n) (n)
@@ -368,7 +291,7 @@ append_gen(parser_state *p, node *a, node *b)
   new_int(parser_state *p, const char *s, int base, int suffix)
   { // base は10進法などを表す
     //node* result = list3((node*)NODE_INT, (node*)strdup(s), nint(base));
-    node* result = list2(atom(":@int"), atom(s));
+    node* result = list2(atom(ATOM_at_int), literal(s));
     return result;
   }
 
@@ -376,7 +299,7 @@ append_gen(parser_state *p, node *a, node *b)
   static node*
   new_self(parser_state *p)
   {
-    return list1(atom(":self"));
+    return list1(atom(ATOM_self));
   }
 
   /* (:fcall self mid args) */
@@ -384,7 +307,7 @@ append_gen(parser_state *p, node *a, node *b)
   new_fcall(parser_state *p, node *b, node *c)
   {
     //node *n = new_self(p);
-    node *n = list3(atom(":command"), b, c);
+    node *n = list3(atom(ATOM_command), b, c);
     return n;
   }
 
@@ -399,7 +322,7 @@ append_gen(parser_state *p, node *a, node *b)
   static node*
   new_dstr(parser_state *p, node *a)
   {
-    return list2(atom(":string_literal"), a);
+    return list2(atom(ATOM_string_literal), a);
     //return cons((node*)NODE_DSTR, a);
   }
 }
@@ -418,7 +341,7 @@ append_gen(parser_state *p, node *a, node *b)
 program ::= top_compstmt(B).   {
 //  if (!p->locals) p->locals = cons(atom(":program"),0);
   //if (!p->locals) {node *a = cons(atom(":program"),0);}
-  root = list2(atom(":program"), B); }
+  root = list2(atom(ATOM_program), B); }
 top_compstmt(A) ::= top_stmts(B) opt_terms. { A = B; }
 top_stmts(A) ::= none. { A = new_begin(p, 0); }
 top_stmts(A) ::= top_stmt(B). { A = new_begin(p, B); }
@@ -437,13 +360,13 @@ command(A) ::= operation(B) command_args(C). [LOWEST] { A = new_fcall(p, B, C); 
 
 command_args ::= call_args.
 
-call_args(A) ::= args(B) opt_block_arg(C). { A = list3(atom(":args_add_block"), B, C); }
+call_args(A) ::= args(B) opt_block_arg(C). { A = list3(atom(ATOM_args_add_block), B, C); }
 
 block_arg(A) ::= AMPER arg(B). { A = new_block_arg(p, B); }
 opt_block_arg(A) ::= COMMA block_arg(B). { A = B; }
 opt_block_arg(A) ::= none. { A = 0; }
 
-args(A) ::= arg(B). { A = list3(atom(":args_add"), list1(atom(":args_new")), B); }
+args(A) ::= arg(B). { A = list3(atom(ATOM_args_add), list1(atom(ATOM_args_new)), B); }
 
 arg(A) ::= arg(B) PLUS arg(C).   { A = call_bin_op(B, PLUS ,C); }
 arg(A) ::= arg(B) MINUS arg(C).  { A = call_bin_op(B, MINUS, C); }
@@ -457,14 +380,14 @@ numeric(A) ::= INTEGER(B). { A = new_int(p, B, 10, 0); }
 
 string ::= string_fragment.
 //string ::= string string_fragment. { A = concat_string(p, B, C); }
-string_fragment(A) ::= STRING_BEG string_rep(C) STRING. { A = new_dstr(p, list3(atom(":string_add"), list1(atom(":string_content")), C)); }
+string_fragment(A) ::= STRING_BEG string_rep(C) STRING. { A = new_dstr(p, list3(atom(ATOM_string_add), list1(atom(ATOM_string_content)), C)); }
 
 string_rep ::= string_interp.
 string_rep(A) ::= string_rep(B) string_interp(C). { A = append(B, C); }
 
-string_interp(A) ::= STRING_MID(B). { A = list2(atom(":@tstring_content"), atom(B)); }
+string_interp(A) ::= STRING_MID(B). { A = list2(atom(ATOM_at_tstring_content), literal(B)); }
 
-operation(A) ::= IDENTIFIER(B). { A = list2(atom(":@ident"), atom(B)); }
+operation(A) ::= IDENTIFIER(B). { A = list2(atom(ATOM_at_ident), literal(B)); }
 operation ::= CONSTANT.
 operation ::= FID.
 
@@ -502,11 +425,8 @@ none(A) ::= . { A = 0; }
     if (p->type == CONS) {
       freeNode(p->cons.car);
       freeNode(p->cons.cdr);
-    } else {
-      if (p->atom.type != NULL) {
-        // printf("free atom: %p\n", p);
-        free(p->atom.type);
-      }
+    } else if (p->type == LITERAL) {
+      free(p->literal.name);
     }
     // printf("free cons: %p\n", p);
     free(p);
@@ -518,26 +438,35 @@ none(A) ::= . { A = 0; }
 
   void showNode1(node *p, Boolean isCar, int indent, Boolean isRightMost) {
     if (p == NULL) return;
-    if (p->type == CONS) {
-      if (isCar) {
-        printf("\n");
-        for (int i=0; i<indent; i++) {
-          printf(" ");
+    switch (p->type) {
+      case CONS:
+        if (isCar) {
+          printf("\n");
+          for (int i=0; i<indent; i++) {
+            printf(" ");
+          }
+          printf("[");
+        } else {
+          printf(", ");
         }
-        printf("[");
-      } else {
-        printf(", ");
-      }
-      if (p->cons.car && p->cons.car->type == ATOM && p->cons.cdr == NULL) {
-        isRightMost = TRUE;
-      }
+        if (p->cons.car && p->cons.car->type != CONS && p->cons.cdr == NULL) {
+          isRightMost = TRUE;
+        }
+        break;
+      case ATOM:
+        printf("%d", p->atom.type);
+        if (isRightMost) {
+          printf("]");
+        }
+        break;
+      case LITERAL:
+        printf("\"%s\"", p->literal.name);
+        if (isRightMost) {
+          printf("]");
+        }
+        break;
     }
-    if (p->type == ATOM) {
-      printf("%s", p->atom.type);
-      if (isRightMost) {
-        printf("]");
-      }
-    } else {
+    if (p->type == CONS) {
       showNode1(p->cons.car, TRUE, indent+1, isRightMost);
       showNode1(p->cons.cdr, FALSE, indent, isRightMost);
     }
@@ -547,7 +476,7 @@ none(A) ::= . { A = 0; }
     if (p == NULL) return;
     if (p->type == ATOM) {
       printf("    atom:%p", p);
-      printf("  value:%s\n", p->atom.type);
+      printf("  value:%d\n", p->atom.type);
     } else {
       printf("cons:%p\n", p);
       printf(" car:%p\n", p->cons.car);
@@ -568,7 +497,7 @@ none(A) ::= . { A = 0; }
   }
 
   Boolean hasCar(node *p) {
-    if (p->type == ATOM)
+    if (p->type != CONS)
       return FALSE;
     if (p->cons.car) {
       return TRUE;
@@ -577,7 +506,7 @@ none(A) ::= . { A = 0; }
   }
 
   Boolean hasCdr(node *p) {
-    if (p->type == ATOM)
+    if (p->type != CONS)
       return FALSE;
     if (p->cons.cdr) {
       return TRUE;
@@ -585,15 +514,31 @@ none(A) ::= . { A = 0; }
     return FALSE;
   }
 
-  Boolean isAtom(node *p){
-    if (p->type == ATOM) {
-      return TRUE;
+  char *kind(node *p){
+    char *type;
+    switch (p->type) {
+      case ATOM:
+        type = "a";
+        break;
+      case LITERAL:
+        type = "l";
+        break;
+      case CONS:
+        type = "c";
+        break;
     }
-    return FALSE;
+    return type;
   }
 
-  void *pointerToType(node *p) {
+  int atom_type(node *p) {
+    if (p->type != ATOM) {
+      return 0;
+    }
     return p->atom.type;
+  }
+
+  void *pointerToLiteral(node *p) {
+    return p->literal.name;
   }
 
   void *pointerToCar(node *p){
