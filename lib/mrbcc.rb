@@ -14,7 +14,7 @@ module Mrbcc
 
   class Main < Thor
     def self.start(args = ARGV, config = {})
-      unless %w(version help).include?(args[0])
+      unless %w(version help compile).include?(args[0])
         args.unshift "compile"
       end
       super(args, config)
@@ -22,8 +22,9 @@ module Mrbcc
 
     default_command :compile
 
-    option :debug, alias: :d, type: :boolean
-    desc "compile", "Compile a Ruby script into mruby intermediate byte code"
+    option :verbose, type: :boolean
+    option :outfile, aliases: "-o", type: :string
+    desc "compile", "Compile a Ruby script into a mruby intermediate byte code"
     def compile(rb_path)
       unless File.exist?(rb_path)
         puts "mrbcc: No program file given"
@@ -32,7 +33,12 @@ module Mrbcc
       tokens = tokenize(rb_path, options[:debug])
       tree = parse(tokens, options[:debug])
       tree.show_all_node if options[:debug]
-      generate(tree, options[:debug])
+      scope = generate(tree, options[:debug])
+      outfile = options[:outfile] || rb_path.sub(/\.\w+\z/, "") + ".mrb"
+      puts outfile
+      File.open(outfile, "w") do |f|
+        f.write scope.code.flatten.pack("C*")
+      end
     end
 
     desc "version", "Print the version"
@@ -83,7 +89,8 @@ module Mrbcc
 
     def generate(tree, debug)
       generator = Generator.new
-      generator.generate(tree.root)
+      scope = generator.generate(tree.root)
+      return scope
     end
 
   end

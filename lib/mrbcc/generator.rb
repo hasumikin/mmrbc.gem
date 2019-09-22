@@ -21,13 +21,7 @@ module Mrbcc
       scope.code.unshift (code_size + HEADER_SIZE).bytes(4) # total size of the binary
       scope.code.unshift crc(scope.code).bytes(2) # CRC
       scope.code.unshift header(scope.code.flatten.size)
-      save(scope, "../test/mruby/out")
-    end
-
-    def save(scope, filename)
-      File.open(filename, "w") do |f|
-        f.write scope.code.flatten.pack("C*")
-      end
+      return scope
     end
 
   private
