@@ -9,7 +9,7 @@ module Mrbcc
 
     attach_function :pointerToMalloc, [], :pointer
     attach_function :pointerToFree, [], :pointer
-    attach_function :showAllNode, [], :void
+    attach_function :showAllNode, [:int], :void
     attach_function :freeAllNode, [], :void
 
     # void *ParseAlloc(

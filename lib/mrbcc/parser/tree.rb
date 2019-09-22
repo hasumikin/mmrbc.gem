@@ -37,6 +37,7 @@ module Mrbcc
 
       def show_all_node
         show_node(@root, true, 0, false)
+        puts
       end
 
       private

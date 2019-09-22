@@ -24,18 +24,19 @@ module Mrbcc
 
     option :verbose, type: :boolean
     option :outfile, aliases: "-o", type: :string
+    option :dryrun, type: :boolean
     desc "compile", "Compile a Ruby script into a mruby intermediate byte code"
     def compile(rb_path)
       unless File.exist?(rb_path)
         puts "mrbcc: No program file given"
         exit false
       end
-      tokens = tokenize(rb_path, options[:debug])
-      tree = parse(tokens, options[:debug])
-      tree.show_all_node if options[:debug]
-      scope = generate(tree, options[:debug])
+      tokens = tokenize(rb_path, options[:verbose])
+      tree = parse(tokens, options[:verbose])
+      tree.show_all_node if options[:verbose]
+      scope = generate(tree, options[:verbose])
       outfile = options[:outfile] || rb_path.sub(/\.\w+\z/, "") + ".mrb"
-      puts outfile
+      exit if options[:dryrun]
       File.open(outfile, "w") do |f|
         f.write scope.code.flatten.pack("C*")
       end
@@ -48,7 +49,7 @@ module Mrbcc
 
   private
 
-    def tokenize(path, debug = false)
+    def tokenize(path, verbose = false)
       Tokenizer.init_classvars
       file = File.open(path, "r")
       tokenizer = Tokenizer.new(file)
@@ -57,14 +58,14 @@ module Mrbcc
       end
     ensure
       file.close
-      if debug
+      if verbose
         pp tokenizer.tokens
         puts
       end
       return tokenizer.tokens
     end
 
-    def parse(tokens, debug)
+    def parse(tokens, verbose)
       pointer_to_malloc = Parser.pointerToMalloc
       pointer_to_free = Parser.pointerToFree
       parser = Parser.ParseAlloc(pointer_to_malloc)
@@ -78,7 +79,7 @@ module Mrbcc
           Parser.Parse(parser, type, token.value)
         end
         Parser.Parse(parser, 0, "")
-        Parser.showAllNode if debug
+        Parser.showAllNode(ENV["PARSER_DEBUG"].to_i)
         root = Parser.pointerToRoot
         return Parser::Tree.new(root)
       ensure
@@ -87,7 +88,7 @@ module Mrbcc
       end
     end
 
-    def generate(tree, debug)
+    def generate(tree, verbose)
       generator = Generator.new
       scope = generator.generate(tree.root)
       return scope

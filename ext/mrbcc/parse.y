@@ -474,22 +474,31 @@ none(A) ::= . { A = 0; }
 
   void showNode2(node *p) {
     if (p == NULL) return;
-    if (p->type == ATOM) {
-      printf("    atom:%p", p);
-      printf("  value:%d\n", p->atom.type);
-    } else {
-      printf("cons:%p\n", p);
-      printf(" car:%p\n", p->cons.car);
-      printf(" cdr:%p\n", p->cons.cdr);
-      showNode2(p->cons.car);
-      showNode2(p->cons.cdr);
+    switch (p->type) {
+      case ATOM:
+        printf("    atom:%p", p);
+        printf("  value:%d\n", p->atom.type);
+        break;
+      case LITERAL:
+        printf("    literal:%p", p);
+        printf("  name:\"%s\"\n", p->literal.name);
+        break;
+      case CONS:
+        printf("cons:%p\n", p);
+        printf(" car:%p\n", p->cons.car);
+        printf(" cdr:%p\n", p->cons.cdr);
+        showNode2(p->cons.car);
+        showNode2(p->cons.cdr);
     }
   }
 
-  void showAllNode(void) {
-    showNode1(root, TRUE, 0, FALSE);
-    printf("\n\n");
-    //showNode2(root);
+  void showAllNode(int way) {
+    if (way == 1) {
+      showNode1(root, TRUE, 0, FALSE);
+    } else if (way == 2) {
+      showNode2(root);
+    }
+    printf("\n");
   }
 
   void *pointerToRoot(void){
