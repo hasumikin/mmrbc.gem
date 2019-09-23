@@ -10,14 +10,14 @@ end
 
 desc "make sheared libraries"
 task :make do
-  Dir.chdir("ext/mrbcc") do
+  Dir.chdir("ext/mmrbc") do
     system "make"
   end
 end
 
 desc "make clean"
 task :make_clean do
-  Dir.chdir("ext/mrbcc") do
+  Dir.chdir("ext/mmrbc") do
     system "make clean"
   end
 end

@@ -1,6 +1,6 @@
 # frozen_string_leteral: true
 
-module Mrbcc
+module Mmrbc
   class Token < Struct.new(:location, :type, :value, :state)
     def initialize(location, type, value, state)
       super(location, type, value, state)

@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require "mrbcc/parser/node"
+require "mmrbc/parser/node"
 
-module Mrbcc
+module Mmrbc
   module Parser
     class Tree
 

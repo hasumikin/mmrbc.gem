@@ -1,16 +1,16 @@
 lib = File.expand_path("lib", __dir__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require "mrbcc/version"
+require "mmrbc/version"
 
 Gem::Specification.new do |spec|
-  spec.name          = "mrbcc"
-  spec.version       = Mrbcc::VERSION
+  spec.name          = "mmrbc"
+  spec.version       = Mmrbc::VERSION
   spec.authors       = ["HASUMI Hitoshi"]
   spec.email         = ["hasumikin@gmail.com"]
 
   spec.summary       = %q{A minimun mruby compiler written in Ruby}
   spec.description   = %q{mruby/c VM as a target. Error detection and correction, supporting complete syntax and optimization are beyond the scope.}
-  spec.homepage      = "https://github.com/hasumikin/mrbcc.gem"
+  spec.homepage      = "https://github.com/hasumikin/mmrbc.gem"
   spec.license       = "MIT"
 
 #  spec.metadata["allowed_push_host"] = "TODO: Set to 'http://mygemserver.com'"

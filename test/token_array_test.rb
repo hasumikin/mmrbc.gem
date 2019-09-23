@@ -1,6 +1,6 @@
 require "test_helper"
 
-module Mrbcc
+module Mmrbc
   class TokenArrayTest < Test::Unit::TestCase
 
     def setup

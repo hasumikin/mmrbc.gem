@@ -1,6 +1,6 @@
 # frozen_string_leteral: true
 
-module Mrbcc
+module Mmrbc
 
   class TokenArray < Array
     def initialize

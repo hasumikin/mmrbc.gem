@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Mrbcc
+module Mmrbc
   module Parser
     class Node < Struct.new(:kind, :car, :cdr, :atom_type, :literal)
       def cons?

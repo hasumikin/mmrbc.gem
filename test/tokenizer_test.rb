@@ -71,7 +71,7 @@ class TokenizerTest < Test::Unit::TestCase
 
   def execute(name)
     Dir.glob("test/fixtures/#{name}.rb").shuffle.each do |f|
-      main = Mrbcc::Main.new
+      main = Mmrbc::Main.new
       tokens = main.send(:tokenize, f)
       Ripper.lex(File.read(f)).each_with_index do |line, i|
         line.pop

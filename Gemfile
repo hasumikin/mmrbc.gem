@@ -1,4 +1,4 @@
 source "https://rubygems.org"
 
-# Specify your gem's dependencies in mrbcc.gemspec
+# Specify your gem's dependencies in mmrbc.gemspec
 gemspec

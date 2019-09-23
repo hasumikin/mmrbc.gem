@@ -1,7 +1,7 @@
-require "mrbcc/tokenizer/token"
-require "mrbcc/tokenizer/token_array"
+require "mmrbc/tokenizer/token"
+require "mmrbc/tokenizer/token_array"
 
-module Mrbcc
+module Mmrbc
   EXPR_NONE   = 0b0000000000000
   EXPR_BEG    = 0b0000000000001
   EXPR_VALUE  = 0b0000000000001

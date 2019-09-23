@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-require "mrbcc/generator/crc"
-require "mrbcc/generator/scope"
-require "mrbcc/generator/opcode"
-require "mrbcc/generator/integer_bytes"
+require "mmrbc/generator/crc"
+require "mmrbc/generator/scope"
+require "mmrbc/generator/opcode"
+require "mmrbc/generator/integer_bytes"
 
-module Mrbcc
+module Mmrbc
   class Generator
     using IntegerBytes
 
@@ -115,7 +115,7 @@ module Mrbcc
       data = code.flatten.pack("C*")
       memBuf = FFI::MemoryPointer.new(:char, data.bytesize)
       memBuf.put_bytes(0, data)
-      return Mrbcc::CRC.calc_crc_16_ccitt(memBuf, data.size, 0)
+      return Mmrbc::CRC.calc_crc_16_ccitt(memBuf, data.size, 0)
     end
 
   end

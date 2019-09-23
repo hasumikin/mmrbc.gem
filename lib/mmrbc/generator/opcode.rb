@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Mrbcc
+module Mmrbc
   # from mrubyc/src/opcode.h
   OP_NOP	= 0x00	#!< Z    no operation
   OP_MOVE	= 0x01	#!< BB   R(a) = R(b)

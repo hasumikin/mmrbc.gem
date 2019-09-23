@@ -2,10 +2,10 @@
 
 require "ffi"
 
-module Mrbcc
+module Mmrbc
   module Parser
     extend FFI::Library
-    ffi_lib File.expand_path("../../../ext/mrbcc/libparse.so", __FILE__)
+    ffi_lib File.expand_path("../../../ext/mmrbc/libparse.so", __FILE__)
 
     attach_function :pointerToMalloc, [], :pointer
     attach_function :pointerToFree, [], :pointer

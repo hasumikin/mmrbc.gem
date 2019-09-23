@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require "mrbcc/generator/integer_bytes"
+require "mmrbc/generator/integer_bytes"
 
-module Mrbcc
+module Mmrbc
   class Scope < Struct.new(:prev, :code, :nlocals, :nirep, :symbols, :literals, :sp, :max_sp)
 
     using IntegerBytes

@@ -1,6 +1,6 @@
 require "test_helper"
 
-module Mrbcc
+module Mmrbc
   class ScopeTest < Test::Unit::TestCase
 
     def setup

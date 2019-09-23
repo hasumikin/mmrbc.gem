@@ -1,6 +1,6 @@
 
-module Mrbcc
-  File.open(File.expand_path("../../../ext/mrbcc/parse.h", __FILE__), "r").each_line do |line|
+module Mmrbc
+  File.open(File.expand_path("../../../ext/mmrbc/parse.h", __FILE__), "r").each_line do |line|
     if data = line.chomp.match(/\A#define\s+(\w+)\s+(\d+)\z/)
       eval "#{data[1]} = #{data[2]}"
     end
@@ -8,7 +8,7 @@ module Mrbcc
 
   atom_index = 1
   ATOM_TYPE = Array.new
-  File.open(File.expand_path("../../../ext/mrbcc/atom_type.h", __FILE__), "r").each_line do |line|
+  File.open(File.expand_path("../../../ext/mmrbc/atom_type.h", __FILE__), "r").each_line do |line|
     if data = line.match(/(ATOM_\w+)/)
       eval "ATOM_TYPE[#{atom_index}] = :#{data[1]}"
       atom_index += 1

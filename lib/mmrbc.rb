@@ -1,15 +1,15 @@
 # frozen_string_literal: true
 
-require "mrbcc/version"
+require "mmrbc/version"
 require "thor"
-require "mrbcc/header"
-require "mrbcc/tokenizer"
-require "mrbcc/parser"
-require "mrbcc/parser/tree"
-require "mrbcc/generator"
+require "mmrbc/header"
+require "mmrbc/tokenizer"
+require "mmrbc/parser"
+require "mmrbc/parser/tree"
+require "mmrbc/generator"
 require "tempfile"
 
-module Mrbcc
+module Mmrbc
   class Error < StandardError; end
 
   class Main < Thor
@@ -28,7 +28,7 @@ module Mrbcc
     desc "compile", "Compile a Ruby script into a mruby intermediate byte code"
     def compile(rb_path)
       unless File.exist?(rb_path)
-        puts "mrbcc: No program file given"
+        puts "mmrbc: No program file given"
         exit false
       end
       tokens = tokenize(rb_path, options[:verbose])
@@ -44,7 +44,7 @@ module Mrbcc
 
     desc "version", "Print the version"
     def version
-      puts "mrbcc v#{Mrbcc::VERSION}"
+      puts "mmrbc v#{Mmrbc::VERSION}"
     end
 
   private
