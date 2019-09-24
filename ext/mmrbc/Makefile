@@ -6,7 +6,7 @@ CRC = crc
 all: libparse.so libcrc.so
 
 libparse.so: $(PARSE).c
-	$(CC) -c -fPIC $(OPT) -o $(PARSE).o $(PARSE).c
+	$(CC) -std=c99 -Wall -c -fPIC $(OPT) -o $(PARSE).o $(PARSE).c
 	$(CC) -shared -o $(TARGET) $(PARSE).o
 
 $(PARSE).c: lemon

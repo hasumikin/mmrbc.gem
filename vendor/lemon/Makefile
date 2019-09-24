@@ -1,5 +1,5 @@
 all:
-	gcc -o lemon lemon.c
+	gcc -std=c99 -o lemon lemon.c
 
 clean:
 	rm -f lemon

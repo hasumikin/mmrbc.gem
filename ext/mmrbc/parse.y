@@ -229,19 +229,22 @@ append_gen(parser_state *p, node *a, node *b)
   #define nsym(x) ((node*)(intptr_t)(x))
   #define nint(x) ((node*)(intptr_t)(x))
 
+/*
   static node*
   locals_node(parser_state *p)
   {
     //return p->locals->cons.car;
     //return p->locals ? p->locals->cons.car : NULL;
   }
-
+*/
   /* (:scope (vars..) (prog...)) */
+/*
   static node*
   new_scope(parser_state *p, node *body)
   {
     return cons(atom(ATOM_stmts_add), cons(locals_node(p), body));
   }
+*/
 
   /* (:call a b c) */
   static node*
@@ -266,7 +269,7 @@ append_gen(parser_state *p, node *a, node *b)
   new_begin(parser_state *p, node *body)
   {
     if (body) {
-      node *add, *new;
+      node *add;//, *new;
       //add = list1(atom(":stmts_add"));
       //new = list2(atom(":stmts_new"), body);
       //add->cons.cdr = new;
