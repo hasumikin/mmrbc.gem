@@ -1,0 +1,3 @@
+[submodule "ext/ruby-lemon-parse"]
+	path = ext/ruby-lemon-parse
+	url = git@github.com:hasumikin/ruby-lemon-parse.git

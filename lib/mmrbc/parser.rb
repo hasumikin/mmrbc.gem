@@ -5,7 +5,7 @@ require "ffi"
 module Mmrbc
   module Parser
     extend FFI::Library
-    ffi_lib File.expand_path("../../../ext/mmrbc/libparse.so", __FILE__)
+    ffi_lib File.expand_path("../../../ext/ruby-lemon-parse/libparse.so", __FILE__)
 
     attach_function :pointerToMalloc, [], :pointer
     attach_function :pointerToFree, [], :pointer

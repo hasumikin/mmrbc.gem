@@ -1,6 +1,6 @@
 
 module Mmrbc
-  File.open(File.expand_path("../../../ext/mmrbc/parse.h", __FILE__), "r").each_line do |line|
+  File.open(File.expand_path("../../../ext/ruby-lemon-parse/parse.h", __FILE__), "r").each_line do |line|
     if data = line.chomp.match(/\A#define\s+(\w+)\s+(\d+)\z/)
       eval "#{data[1]} = #{data[2]}"
     end
@@ -8,7 +8,7 @@ module Mmrbc
 
   atom_index = 1
   ATOM_TYPE = Array.new
-  File.open(File.expand_path("../../../ext/mmrbc/atom_type.h", __FILE__), "r").each_line do |line|
+  File.open(File.expand_path("../../../ext/ruby-lemon-parse/atom_type.h", __FILE__), "r").each_line do |line|
     if data = line.match(/(ATOM_\w+)/)
       eval "ATOM_TYPE[#{atom_index}] = :#{data[1]}"
       atom_index += 1
