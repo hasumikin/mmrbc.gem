@@ -401,7 +401,6 @@ module Mmrbc
           type = :on_tstring_beg
         else
           puts "ERROR error"
-          binding.irb
         end
       end
       @@pos += token.size unless lazy_token
