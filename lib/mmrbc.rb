@@ -44,7 +44,7 @@ module Mmrbc
 
     desc "version", "Print the version"
     def version
-      puts "mmrbc v#{Mmrbc::VERSION}"
+      puts "mmrbc.gem v#{Mmrbc::VERSION}"
     end
 
   private
