@@ -67,6 +67,10 @@ class TokenizerTest < Test::Unit::TestCase
     execute "wifi*"
   end
 
+  def test_interpolation
+    execute "interpolation*"
+  end
+
   private
 
   def execute(name)
