@@ -242,8 +242,6 @@ module Mmrbc
             @@pos += 1
             @mode = nil
             break
-          elsif @@line[@@pos..@@pos+1] == "\'"
-            c = "\'"
           else
             c = @@line[@@pos]
           end
