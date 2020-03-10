@@ -18,7 +18,7 @@ module Mmrbc
   TOKEN_TYPE = {
     on_ident: IDENTIFIER,
     on_tstring_beg: STRING_BEG,
-    on_tstring_end: STRING,
+    on_tstring_end: STRING_END,
     on_tstring_content: STRING_MID,
     on_int: INTEGER,
     on_comma: COMMA,

@@ -9,13 +9,15 @@ module Mmrbc
 
     attach_function :pointerToMalloc, [], :pointer
     attach_function :pointerToFree, [], :pointer
-    attach_function :showAllNode, [:int], :void
-    attach_function :freeAllNode, [], :void
+    attach_function :ParseShowAllNode, [:pointer, :int], :void
+    attach_function :ParseFreeAllNode, [:pointer], :void
+
+    attach_function :ParseInitState, [], :pointer
 
     # void *ParseAlloc(
     #   void *(*mallocProc)(YYMALLOCARGTYPE) ParseCTX_PDECL
     # ){
-    attach_function :ParseAlloc, [:pointer], :pointer
+    attach_function :ParseAlloc, [:pointer, :pointer], :pointer
 
     # void ParseFree(
     #   void *p,                    /* The parser to be deleted */
@@ -31,7 +33,7 @@ module Mmrbc
     # ){
     attach_function :Parse, [:pointer, :int, :string], :void
 
-    attach_function :pointerToRoot, [], :pointer
+    attach_function :pointerToRoot, [:pointer], :pointer
     attach_function :kind, [:pointer], :string
     attach_function :atom_type, [:pointer], :int
     attach_function :hasCar, [:pointer], :bool

@@ -68,7 +68,8 @@ module Mmrbc
     def parse(tokens, verbose)
       pointer_to_malloc = Parser.pointerToMalloc
       pointer_to_free = Parser.pointerToFree
-      parser = Parser.ParseAlloc(pointer_to_malloc)
+      parser_state = Parser.ParseInitState
+      parser = Parser.ParseAlloc(pointer_to_malloc, parser_state)
       begin
         tokens.each do |token|
           type = TOKEN_TYPE[token.type]
@@ -79,11 +80,11 @@ module Mmrbc
           Parser.Parse(parser, type, token.value)
         end
         Parser.Parse(parser, 0, "")
-        Parser.showAllNode(ENV["PARSER_DEBUG"].to_i)
-        root = Parser.pointerToRoot
+        Parser.ParseShowAllNode(parser, ENV["PARSER_DEBUG"].to_i)
+        root = Parser.pointerToRoot(parser)
         return Parser::Tree.new(root)
       ensure
-        Parser.freeAllNode
+        Parser.ParseFreeAllNode(parser)
         Parser.ParseFree(parser, pointer_to_free)
       end
     end
