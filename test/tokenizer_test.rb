@@ -3,6 +3,10 @@ require "ripper"
 
 class TokenizerTest < Test::Unit::TestCase
 
+  def test_puts
+    execute "puts*"
+  end
+
   def test_hello
     execute "hello*"
   end
