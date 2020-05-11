@@ -16,7 +16,7 @@ module Mmrbc
       end
 
       def atom_name
-        return nil unless self.car&.atom?
+        return :ATOM_NONE unless self.car&.atom?
         ATOM_TYPE[self.car.atom_type]
       end
 

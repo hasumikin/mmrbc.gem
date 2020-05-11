@@ -19,8 +19,8 @@ module Mmrbc
       scope.code.unshift "0000".bytes # compiler version
       scope.code.unshift "MATZ".bytes # compiler name
       scope.code.unshift (code_size + HEADER_SIZE).bytes(4) # total size of the binary
-      scope.code.unshift crc(scope.code).bytes(2) # CRC
-      scope.code.unshift header(scope.code.flatten.size)
+      scope.code.unshift crc(scope.code).bytes(2) # CRC 2 bytes
+      scope.code.unshift header # 8 bytes
       return scope
     end
 
@@ -65,7 +65,7 @@ module Mmrbc
     def codegen(scope, tree)
       return if tree.nil? || tree.atom?
       case tree.atom_name
-      when nil
+      when :ATOM_NONE
         codegen(scope, tree.car)
         codegen(scope, tree.cdr)
       when :ATOM_program
@@ -105,7 +105,7 @@ module Mmrbc
        [0x00, 0x00, 0x00, 0x08] # section size
     end
 
-    def header(code_size)
+    def header
       "RITE".bytes + # binary ID
       "0006".bytes # binary format version
 
