@@ -13,7 +13,7 @@ GEM
     rake (13.0.3)
     test-unit (3.4.4)
       power_assert
-    thor (1.1.0)
+    thor (1.4.0)
 
 PLATFORMS
   ruby
